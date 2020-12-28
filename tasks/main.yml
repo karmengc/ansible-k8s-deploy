@@ -1,0 +1,80 @@
+---
+
+# tasks file for ansible-k8s-deploy
+#
+
+#- name: PV and PVC NFS template upload
+#  template:
+#    src: "nfs-pv-pvc.yaml.j2"
+#    dest: "/home/{{ provision_cluster_user }}"
+#    owner: "{{ provision_cluster_user }}"
+#    group: wheel
+#    mode: '0644'
+
+
+#- name: install python docker sdk for ansible modules
+#  command: "pip install docker"
+
+- name: install openshift
+  command: "pip install openshift"
+
+- name: build hellogo container image
+  community.general.docker_image:
+    name: "hello-go"
+    build:
+      path: "/mnt/nfs/hello-go"
+    source: build
+    state: present
+
+- name: Create hellogo deployment from an inline definition
+  community.kubernetes.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: hello-go
+        namespace: default
+        labels:
+          app: hello-go
+      spec:
+        selector:
+          matchLabels:
+            app: hello-go
+        template:
+          metadata:
+            labels:
+              app: hello-go
+          spec:
+            containers:
+            - name: hello-go 
+              imagePullPolicy: IfNotPresent
+              image: hello-go
+              ports:
+                - containerPort: 8180
+
+
+- name: Create a Service object from an inline definition
+  community.kubernetes.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: hello-go-service
+        namespace: default
+        labels:
+          app: hello-go
+          service: web
+      spec:
+        type: LoadBalancer
+        selector:
+          app: hello-go
+          service: web
+        ports:
+        - protocol: TCP
+          targetPort: 8180
+          name: port-8180-tcp
+          port: 8180
+
+
