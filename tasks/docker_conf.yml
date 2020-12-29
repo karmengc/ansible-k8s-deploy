@@ -1,0 +1,87 @@
+---
+
+
+- name: Asegurar que la imagen del contenedor de registro está presente
+  docker_image:
+    name: "registry:2"
+    source: pull
+
+- name: Ejecutar contenedor de registro localmente
+  docker_container:
+    name: registry
+    image: "registry:2"
+    state: started
+    published_ports:
+     # Publish container port 5000 as host port 5000
+     - "5000:5000"
+
+- name: Get existing image
+  shell: |
+    docker image inspect localhost:5000/hello-go
+  register: image_exists
+  ignore_errors: yes
+  changed_when: false
+
+- name: Log into private registry and force re-authorization
+  become_user: "{{ provision_cluster_user }}"
+  docker_login:
+    registry: "localhost:5000"
+    username: "{{ provision_cluster_user }}"
+    password: "{{ provision_cluster_user_passwd }}"
+    reauthorize: yes
+  register: docker_login
+
+- name: build hellogo container image
+  #community.general.docker_image:
+  docker_image:
+    name: "localhost:5000/hello-go"
+    build:
+      path: "/mnt/nfs/hello-go"
+    source: build
+    state: present
+  when: image_exists.rc == 1
+
+- name: push hellogo container image to local registry
+  docker_image:
+    name: "localhost:5000/hello-go"
+    tag: "latest"
+    repository: "localhost:5000/hello-go:latest"
+    push: true
+    source: local
+    state: present
+  when: image_exists.rc == 1
+
+    #- name: Add docker login as secret at Kubernetes
+    #  become_user: "{{ provision_cluster_user }}"
+    #  shell: |
+    #    kubectl create secret generic regcred \
+    #    --from-file=.dockerconfigjson=/home/{{ provision_cluster_user }}/.docker/config.json \
+    #    --type=kubernetes.io/dockerconfigjson
+    #  when: docker_login.changed
+
+- name: Read credentiales docker file
+  slurp: 
+    src: "/home/{{ provision_cluster_user }}/.docker/config.json"
+  register: docker_login_cred_file 
+ 
+- name: display file content (undecoded) 
+  debug: 
+    var: docker_login_cred_file.content
+  
+- name: display file content (decoded) 
+  debug: 
+    var: docker_login_cred_file.content | b64encode
+
+- name: Create Docker secret at Kubernetes
+  k8s:
+    state: present
+    definition: 
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "regcred"
+        namespace: "default"     
+      data:
+        .dockerconfigjson: '{{ docker_login_cred_file.content }}'
+      type: kubernetes.io/dockerconfigjson
+

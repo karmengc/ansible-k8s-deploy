@@ -12,22 +12,19 @@
 #    mode: '0644'
 
 
-#- name: install python docker sdk for ansible modules
-#  command: "pip install docker"
+- name: install python docker sdk for ansible modules
+  command: "pip install docker"
 
 - name: install openshift
   command: "pip install openshift"
 
-- name: build hellogo container image
-  community.general.docker_image:
-    name: "hello-go"
-    build:
-      path: "/mnt/nfs/hello-go"
-    source: build
-    state: present
+- name: Docker configuration
+  include_tasks: docker_conf.yml
+
 
 - name: Create hellogo deployment from an inline definition
-  community.kubernetes.k8s:
+  #community.kubernetes.k8s:
+  k8s:
     state: present
     definition:
       apiVersion: apps/v1
@@ -38,6 +35,7 @@
         labels:
           app: hello-go
       spec:
+        replicas: 1
         selector:
           matchLabels:
             app: hello-go
@@ -47,15 +45,18 @@
               app: hello-go
           spec:
             containers:
-            - name: hello-go 
-              imagePullPolicy: IfNotPresent
-              image: hello-go
-              ports:
+              - name: hello-go
+                imagePullPolicy: IfNotPresent
+                image: hello-go
+                imagePullSecrets:
+                  - name: regcred
+                ports:
                 - containerPort: 8180
 
 
 - name: Create a Service object from an inline definition
-  community.kubernetes.k8s:
+  #community.kubernetes.k8s:
+  k8s:
     state: present
     definition:
       apiVersion: v1
