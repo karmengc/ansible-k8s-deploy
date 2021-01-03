@@ -1,40 +1,66 @@
 ---
 
+#- name: Añadir línea en etc_hosts para registro de docker local
+#  lineinfile:
+#    path: /etc/hosts
+#    line: "127.0.0.1 localhost registry.me"
+#    insertafter: EOF
+- name: Añadir línea en configuración de docker
+  lineinfile:
+    path: /etc/default/docker
+    line: "DOCKER_OPTS=\"--config-file=/etc/docker/daemon.json\""
+    insertafter: EOF
 
-- name: Asegurar que la imagen del contenedor de registro está presente
-  docker_image:
-    name: "registry:2"
-    source: pull
+- name: Añadir línea en configuración de docker daemon
+  lineinfile:
+    path: /etc/docker/daemon.json
+    line: "{ \"insecure-registries\":[\"master:31320\"] }"
+    insertafter: EOF
+    create: yes
 
-- name: Ejecutar contenedor de registro localmente
-  docker_container:
-    name: registry
-    image: "registry:2"
-    state: started
-    published_ports:
-     # Publish container port 5000 as host port 5000
-     - "5000:5000"
+      #- name: Asegurar que la imagen del contenedor de registro está presente
+      #  docker_image:
+      #    name: "registry:2"
+      #    source: pull
+      #
+      #- name: Ejecutar contenedor de registro localmente
+      #  docker_container:
+      #    name: registry
+      #    image: "registry:2"
+      #    state: started
+      #    published_ports:
+      #     # Publish container port 5000 as host port 5000
+      #     - "5000:5000"
 
 - name: Get existing image
   shell: |
-    docker image inspect localhost:5000/hello-go
+    docker image inspect master:31320/hello-go
   register: image_exists
   ignore_errors: yes
   changed_when: false
 
-- name: Log into private registry and force re-authorization
-  become_user: "{{ provision_cluster_user }}"
-  docker_login:
-    registry: "localhost:5000"
-    username: "{{ provision_cluster_user }}"
-    password: "{{ provision_cluster_user_passwd }}"
-    reauthorize: yes
-  register: docker_login
+    #- name: Log into private registry and force re-authorization
+    #  become_user: "{{ provision_cluster_user }}"
+    #  docker_login:
+    #    #registry: "http://192.168.130.150:5000"
+    #    registry: "https://master:31320"
+    #    username: "{{ provision_cluster_user }}"
+    #    password: "{{ provision_cluster_user_passwd }}"
+    #    tls: yes
+    #    ca_cert: "/opt/certs/ca.pem"
+    #    client_cert: "/opt/certs/registry.crt"
+    #    #client_cert: "/opt/certs/cert.pem"
+    #    client_key: "/opt/certs/registry.key"
+    #    #client_key: "/opt/certs/key.pem"
+    #    #validate_certs: yes
+    #    reauthorize: yes
+    #  register: docker_login
 
 - name: build hellogo container image
   #community.general.docker_image:
   docker_image:
-    name: "localhost:5000/hello-go"
+    #name: "192.168.130.150:5000/hello-go:latest"
+    name: "master:31320/hello-go:latest"
     build:
       path: "/mnt/nfs/hello-go"
     source: build
@@ -43,9 +69,11 @@
 
 - name: push hellogo container image to local registry
   docker_image:
-    name: "localhost:5000/hello-go"
+    #name: "192.168.130.150:5000/hello-go"
+    name: "master:31320/hello-go"
     tag: "latest"
-    repository: "localhost:5000/hello-go:latest"
+    #repository: "192.168.130.150:5000/hello-go:latest"
+    repository: "master:31320/hello-go:latest"
     push: true
     source: local
     state: present
@@ -59,29 +87,29 @@
     #    --type=kubernetes.io/dockerconfigjson
     #  when: docker_login.changed
 
-- name: Read credentiales docker file
-  slurp: 
-    src: "/home/{{ provision_cluster_user }}/.docker/config.json"
-  register: docker_login_cred_file 
- 
-- name: display file content (undecoded) 
-  debug: 
-    var: docker_login_cred_file.content
-  
-- name: display file content (decoded) 
-  debug: 
-    var: docker_login_cred_file.content | b64encode
-
-- name: Create Docker secret at Kubernetes
-  k8s:
-    state: present
-    definition: 
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: "regcred"
-        namespace: "default"     
-      data:
-        .dockerconfigjson: '{{ docker_login_cred_file.content }}'
-      type: kubernetes.io/dockerconfigjson
-
+    #- name: Read credentiales docker file
+    #  slurp: 
+    #    src: "/home/{{ provision_cluster_user }}/.docker/config.json"
+    #  register: docker_login_cred_file 
+    # 
+    #- name: display file content (undecoded) 
+    #  debug: 
+    #    var: docker_login_cred_file.content
+    #  
+    #- name: display file content (decoded) 
+    #  debug: 
+    #    var: docker_login_cred_file.content | b64encode
+    #
+    #- name: Create Docker secret at Kubernetes
+    #  k8s:
+    #    state: present
+    #    definition: 
+    #      apiVersion: v1
+    #      kind: Secret
+    #      metadata:
+    #        name: "regcred"
+    #        namespace: "default"     
+    #      data:
+    #        .dockerconfigjson: '{{ docker_login_cred_file.content }}'
+    #      type: kubernetes.io/dockerconfigjson
+    #

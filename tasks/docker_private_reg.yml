@@ -1,0 +1,114 @@
+---
+
+- name: Make sure we can use htpasswd module
+  apt: "pkg=python3-passlib state=present"
+
+- name: Create user and pass for docker registry
+  htpasswd:
+    path: "/opt/auth/htpasswd"
+    name: "{{ provision_cluster_user }}"
+    password: "{{ provision_cluster_user_passwd }}"
+    owner: root
+    group: wheel
+    mode: 0644
+    state: present
+
+
+- name: Create docker private registry as deployment from an inline definition
+  k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: private-repository-k8s
+        namespace: default
+        labels:
+          app: private-repository-k8s
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: private-repository-k8s
+        template:
+          metadata:
+            labels:
+              app: private-repository-k8s
+          spec:
+            volumes:
+            - name: certs-vol
+              hostPath:
+                path: /opt/certs
+                type: Directory
+            - name: registry-vol
+              hostPath:
+                path: /opt/registry
+                type: Directory
+            ## nuevo
+            - name: auth
+              hostPath:
+                path: /opt/auth
+                type: Directory
+            containers:
+              - image: registry:2
+                name: private-repository-k8s
+                imagePullPolicy: IfNotPresent
+                env:
+                ##nuevo
+                - name: REGISTRY_AUTH
+                  value: "htpasswd"
+                - name: REGISTRY_AUTH_HTPASSWD_REALM
+                  value: "Registry Realm"
+                - name: REGISTRY_AUTH_HTPASSWD_PATH
+                  value: "/auth/htpasswd"
+                ##
+                - name: REGISTRY_HTTP_TLS_CERTIFICATE
+                  value: "/certs/registry.crt"
+                  #value: "/certs/cert.pem"
+                - name: REGISTRY_HTTP_TLS_KEY
+                  value: "/certs/registry.key"
+                  #value: "/certs/key.pem"
+                ports:
+                  - containerPort: 5000
+                volumeMounts:
+                - name: certs-vol
+                  mountPath: /certs
+                - name: registry-vol
+                  mountPath: /var/lib/registry
+                ##nuevo
+                - mountPath: /auth
+                  name: auth
+
+- name: Create a Service object from an inline definition
+  #community.kubernetes.k8s:
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        namespace: default
+        labels:
+          app: private-repository-k8s
+        name: private-repository-k8s
+      spec:
+        ports:
+        - port: 5000
+          nodePort: 31320
+          protocol: TCP
+          targetPort: 5000
+        selector:
+          app: private-repository-k8s
+        type: NodePort
+
+
+          #- name: Allow ALL at iptables
+          #  shell: |
+          #    iptables -P INPUT ACCEPT
+          #    iptables -P FORWARD ACCEPT
+          #    iptables -P OUTPUT ACCEPT
+          #    iptables -t nat -F
+          #    iptables -t mangle -F
+          #    iptables -F
+          #    iptables -X
+          #  become: yes

@@ -18,9 +18,16 @@
 - name: install openshift
   command: "pip install openshift"
 
+- name: Create Docker private registry
+  include_tasks: docker_private_reg.yml
+
+    #- name: Sleep for 200 seconds and continue with play
+    #  wait_for:
+    #    timeout: 200
+    #  delegate_to: localhost
+
 - name: Docker configuration
   include_tasks: docker_conf.yml
-
 
 - name: Create hellogo deployment from an inline definition
   #community.kubernetes.k8s:
@@ -47,11 +54,12 @@
             containers:
               - name: hello-go
                 imagePullPolicy: IfNotPresent
-                image: hello-go
-                imagePullSecrets:
-                  - name: regcred
+                #image: 192.168.130.150:5000/hello-go:latest
+                image: master:31320/hello-go:latest
                 ports:
                 - containerPort: 8180
+                  # imagePullSecrets:
+                  # - name: regcred
 
 
 - name: Create a Service object from an inline definition
@@ -78,4 +86,15 @@
           name: port-8180-tcp
           port: 8180
 
+
+            #- name: Allow ALL at iptables
+            #  shell: |
+            #    iptables -P INPUT ACCEPT
+            #    iptables -P FORWARD ACCEPT
+            #    iptables -P OUTPUT ACCEPT
+            #    iptables -t nat -F
+            #    iptables -t mangle -F
+            #    iptables -F
+            #    iptables -X
+            #  become: yes
 
