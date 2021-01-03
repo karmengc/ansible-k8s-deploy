@@ -1,40 +1,71 @@
 ---
 
-#- name: Añadir línea en etc_hosts para registro de docker local
+#- name: Añadir línea en configuración de docker
 #  lineinfile:
-#    path: /etc/hosts
-#    line: "127.0.0.1 localhost registry.me"
+#    path: /etc/default/docker
+#    line: "DOCKER_OPTS=\"--config-file=/etc/docker/daemon.json\""
 #    insertafter: EOF
-- name: Añadir línea en configuración de docker
-  lineinfile:
-    path: /etc/default/docker
-    line: "DOCKER_OPTS=\"--config-file=/etc/docker/daemon.json\""
-    insertafter: EOF
+#
+#- name: Añadir línea en configuración de docker daemon
+#  lineinfile:
+#    path: /etc/docker/daemon.json
+#    line: "{ \"insecure-registries\":[\"master:5000\"] }"
+#    insertafter: EOF
+#    create: yes
 
-- name: Añadir línea en configuración de docker daemon
-  lineinfile:
-    path: /etc/docker/daemon.json
-    line: "{ \"insecure-registries\":[\"master:31320\"] }"
-    insertafter: EOF
-    create: yes
+- name: Asegurar que la imagen del contenedor de registro está presente
+  docker_image:
+    name: "registry:2"
+    source: pull
 
-      #- name: Asegurar que la imagen del contenedor de registro está presente
-      #  docker_image:
-      #    name: "registry:2"
-      #    source: pull
-      #
-      #- name: Ejecutar contenedor de registro localmente
-      #  docker_container:
-      #    name: registry
-      #    image: "registry:2"
-      #    state: started
-      #    published_ports:
-      #     # Publish container port 5000 as host port 5000
-      #     - "5000:5000"
+- name: Crear carpeta var lib registry
+  file:
+    path: "/var/lib/registry"
+    state: directory
+    group: docker
+
+- name: Crear carpeta confd para certificados
+  file:
+    path: "/var/lib/registry/conf.d"
+    state: directory
+
+- name: Copiar certificados en confd
+  copy:
+    src: "/opt/certs/{{ item }}"
+    dest: "/var/lib/registry/conf.d"
+    remote_src: yes
+  with_items:
+    - registry.key
+    - registry.crt
+
+- name: Ejecutar contenedor de registro localmente
+  docker_container:
+    name: registry
+    image: "registry:2"
+    state: started
+    env:
+      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: "/registry_data"
+      REGISTRY_HTTP_TLS_KEY: "/registry_data/conf.d/registry.key"
+      REGISTRY_HTTP_TLS_CERTIFICATE: "/registry_data/conf.d/registry.crt"
+    published_ports:
+     # Publish container port 5000 as host port 5000
+     - "5000:5000"
+    volumes:
+      - /var/lib/registry:/registry_data
+
+# iptables -I INPUT -p tcp -m tcp --dport 5000 -j ACCEPT
+# service iptables save
+- name: Allow new incoming packets on TCP port 5000
+  iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: 5000
+    jump: ACCEPT
+    comment: Accept Docker Registry connections.
 
 - name: Get existing image
   shell: |
-    docker image inspect master:31320/hello-go
+    docker image inspect master:5000/hello-go
   register: image_exists
   ignore_errors: yes
   changed_when: false
@@ -43,7 +74,7 @@
     #  become_user: "{{ provision_cluster_user }}"
     #  docker_login:
     #    #registry: "http://192.168.130.150:5000"
-    #    registry: "https://master:31320"
+    #    registry: "https://master:5000"
     #    username: "{{ provision_cluster_user }}"
     #    password: "{{ provision_cluster_user_passwd }}"
     #    tls: yes
@@ -60,7 +91,9 @@
   #community.general.docker_image:
   docker_image:
     #name: "192.168.130.150:5000/hello-go:latest"
-    name: "master:31320/hello-go:latest"
+    #name: "master:5000/hello-go:latest"
+    name: "hello-go"
+    tag: "latest"
     build:
       path: "/mnt/nfs/hello-go"
     source: build
@@ -70,13 +103,15 @@
 - name: push hellogo container image to local registry
   docker_image:
     #name: "192.168.130.150:5000/hello-go"
-    name: "master:31320/hello-go"
+    #name: "master:5000/hello-go"
+    name: "hello-go"
     tag: "latest"
     #repository: "192.168.130.150:5000/hello-go:latest"
-    repository: "master:31320/hello-go:latest"
+    #repository: "master:5000/hello-go:latest"
+    repository: "master:5000/hello-go"
     push: true
     source: local
-    state: present
+      #    state: present
   when: image_exists.rc == 1
 
     #- name: Add docker login as secret at Kubernetes
