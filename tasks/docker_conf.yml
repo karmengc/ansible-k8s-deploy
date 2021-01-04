@@ -73,45 +73,34 @@
     #- name: Log into private registry and force re-authorization
     #  become_user: "{{ provision_cluster_user }}"
     #  docker_login:
-    #    #registry: "http://192.168.130.150:5000"
     #    registry: "https://master:5000"
     #    username: "{{ provision_cluster_user }}"
     #    password: "{{ provision_cluster_user_passwd }}"
     #    tls: yes
-    #    ca_cert: "/opt/certs/ca.pem"
+    #    #ca_cert: "/opt/certs/ca.pem"
     #    client_cert: "/opt/certs/registry.crt"
-    #    #client_cert: "/opt/certs/cert.pem"
     #    client_key: "/opt/certs/registry.key"
-    #    #client_key: "/opt/certs/key.pem"
     #    #validate_certs: yes
     #    reauthorize: yes
     #  register: docker_login
 
 - name: build hellogo container image
-  #community.general.docker_image:
   docker_image:
-    #name: "192.168.130.150:5000/hello-go:latest"
-    #name: "master:5000/hello-go:latest"
     name: "hello-go"
     tag: "latest"
     build:
       path: "/mnt/nfs/hello-go"
+      pull: false
     source: build
-    state: present
   when: image_exists.rc == 1
 
 - name: push hellogo container image to local registry
   docker_image:
-    #name: "192.168.130.150:5000/hello-go"
-    #name: "master:5000/hello-go"
     name: "hello-go"
     tag: "latest"
-    #repository: "192.168.130.150:5000/hello-go:latest"
-    #repository: "master:5000/hello-go:latest"
-    repository: "master:5000/hello-go"
+    repository: "master:5000/hello-go:latest"
     push: true
     source: local
-      #    state: present
   when: image_exists.rc == 1
 
     #- name: Add docker login as secret at Kubernetes
