@@ -1,0 +1,71 @@
+---
+
+
+- name: Create hellogo deployment from an inline definition
+  k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: hello-go
+        namespace: default
+      spec:
+        replicas: 2
+        selector:
+          matchLabels:
+            app: hello-go
+        template:
+          metadata:
+            labels:
+              app: hello-go
+          spec:
+            containers:
+              - name: hello-go
+                imagePullPolicy: IfNotPresent
+                image: master:5000/hello-go:latest
+                ports:
+                - containerPort: 8180
+
+- name: Create a Service object from an inline definition
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: hello-go
+        namespace: default
+      spec:
+        type: NodePort
+        ports:
+        - targetPort: 8180
+          port: 8180
+        selector:
+          app: hello-go
+
+
+- name: Get hello-go service details
+  k8s_info:
+    kind: Service
+    name: hello-go
+    namespace: default
+  register: svc
+
+- name: Print the full svc variable
+  debug: var=svc
+
+- name: Set the service NodePort as a variable
+  set_fact:
+    port: "{{ svc['resources'][0]['spec']['ports'][0]['nodePort'] }}"
+
+
+      #Este test dará error. Mejor probar directamente en el navegador
+      #- name: Test a request to the service
+      #  uri:
+      #    url: http://{{ master_ip }}:{{ port }}/
+
+- name: Print the URL for hello-go
+  debug:
+    msg: http://{{ master_ip }}:{{ port }}/
+

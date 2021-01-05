@@ -11,85 +11,22 @@
 #    group: wheel
 #    mode: '0644'
 
-#Movido a k8s install:
-#- name: install python docker sdk for ansible modules
-#  command: "pip install docker"
-#
-#- name: install openshift
-#  command: "pip install openshift"
-
-    #- name: Create Docker private registry
-    #  include_tasks: docker_private_reg.yml
 
 - name: Docker configuration
   include_tasks: docker_conf.yml
 
-- name: Create hellogo deployment from an inline definition
-  #community.kubernetes.k8s:
-  k8s:
-    state: present
-    definition:
-      apiVersion: apps/v1
-      kind: Deployment
-      metadata:
-        name: hello-go
-        namespace: default
-        labels:
-          app: hello-go
-      spec:
-        replicas: 1
-        selector:
-          matchLabels:
-            app: hello-go
-        template:
-          metadata:
-            labels:
-              app: hello-go
-          spec:
-            containers:
-              - name: hello-go
-                imagePullPolicy: IfNotPresent
-                #image: 192.168.130.150:5000/hello-go:latest
-                image: master:5000/hello-go:latest
-                ports:
-                - containerPort: 8180
-                  # imagePullSecrets:
-                  # - name: regcred
+
+#https://github.com/kubernetes/kubernetes/issues/71305
+#https://docs.oracle.com/en/operating-systems/oracle-linux/kubernetes/kube_admin_config.html#kube_admin_config_iptables
+- name: Aceptar Forwarding
+  iptables:
+    chain: FORWARD
+    jump: ACCEPT
 
 
-- name: Create a Service object from an inline definition
-  #community.kubernetes.k8s:
-  k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: hello-go-service
-        namespace: default
-        labels:
-          app: hello-go
-          service: web
-      spec:
-        type: LoadBalancer
-        selector:
-          app: hello-go
-          service: web
-        ports:
-        - protocol: TCP
-          targetPort: 8180
-          name: port-8180-tcp
-          port: 8180
+- name: Deploy hello-go
+  include_tasks: deploy_hello_go.yml
 
-
-            #- name: Allow ALL at iptables
-            #  shell: |
-            #    iptables -P INPUT ACCEPT
-            #    iptables -P FORWARD ACCEPT
-            #    iptables -P OUTPUT ACCEPT
-            #    iptables -t nat -F
-            #    iptables -t mangle -F
-            #    iptables -F
-            #    iptables -X
-            #  become: yes
+#- name: Deploy hello-k8s
+#  include_tasks: deploy_hello_k8s.yml
 
