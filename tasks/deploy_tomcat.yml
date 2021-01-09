@@ -1,0 +1,98 @@
+---
+
+- name: Pull Tomcat image
+  docker_image:
+    name: tomcat:8
+    source: pull
+
+- name: push tomcat container image to local registry
+  docker_image:
+    name: "tomcat"
+    tag: "8"
+    repository: "master:5000/tomcat:8"
+    push: true
+    source: local
+
+
+- name: Create tomcat
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ReplicationController
+      metadata:
+        name: myweb-tomcat
+        namespace: default
+      spec:
+        replicas: 1
+        selector:
+          app: myweb
+        template:
+          metadata:
+            labels:
+              app: myweb
+          spec:
+            containers:
+            - name: myweb
+              imagePullPolicy: IfNotPresent
+              image: master:5000/tomcat:8
+              ports:
+              - containerPort: 8080
+              resources:           #Recursos asignados al contenedor
+                limits:
+                  cpu: "0.5"   #CPU
+                  memory: "1Gi"  #Memoria
+              env:          #Variables de entorno para conectar Tomcat con MySQL
+              - name: MYSQL_SERVICE_HOST
+                value: "mysql"
+              - name: MYSQL_SERVICE_PORT
+                value: "3306"
+
+- name: Create tomcat service
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: myweb
+        namespace: default
+      spec:
+        type: NodePort
+        ports:
+        - name: myweb-svc
+          port: 8080
+          targetPort: 8080
+          nodePort: 30080 # Verdadero puerto del Nodo (debe ser entre 30000 y 32767)
+        selector:
+          app: myweb
+
+#https://stackoverflow.com/questions/59484509/node-had-taints-that-the-pod-didnt-tolerate-error-when-deploying-to-kubernetes
+- name: Prevent taint error when Molecule testing
+  command: "kubectl taint nodes --all node-role.kubernetes.io/master-"
+  when: provision_cluster_user == 'vagrant'
+  ignore_errors: true
+
+- name: Get tomcat service details
+  k8s_info:
+    kind: Service
+    name: myweb
+    namespace: default
+  register: svc
+
+- name: Print the full svc variable
+  debug: var=svc
+
+- name: Set the service NodePort as a variable
+  set_fact:
+    port: "{{ svc['resources'][0]['spec']['ports'][0]['nodePort'] }}"
+
+      #Esto da error 404
+      #- name: Test a request to the service
+      #  uri:
+      #    url: http://{{ master_ip }}:{{ port }}/
+
+- name: Print the URL for Tomcat
+  debug:
+    msg: http://{{ master_ip }}:{{ port }}/
+

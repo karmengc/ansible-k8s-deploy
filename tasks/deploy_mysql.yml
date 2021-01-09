@@ -1,0 +1,91 @@
+---
+
+- name: Pull MySQL image
+  docker_image:
+    name: mysql:5.7
+    source: pull
+
+- name: push mysql container image to local registry
+  docker_image:
+    name: "mysql"
+    tag: "5.7"
+    repository: "master:5000/mysql:5.7"
+    push: true
+    source: local
+
+
+- name: Create MySQL RC
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ReplicationController
+      metadata:
+        name: myweb-mysql
+        namespace: default
+      spec:
+        replicas: 1
+        selector:
+            app: mysql
+        template:
+          metadata:
+            labels:
+              app: mysql
+          spec:
+            containers:
+            - name: mysql
+              imagePullPolicy: IfNotPresent
+              image: master:5000/mysql:5.7
+              ports:
+              - containerPort: 3306
+              resources:           #Recursos asignados al contenedor
+                limits:
+                  cpu: "0.3"   #CPU
+                  memory: "0.8Gi"  #Memoria
+              env:          #Variables de entorno para acceder a MySQL
+              - name: MYSQL_ROOT_PASSWORD
+                value: "{{ k8s_deploy_mysql_passwd }}"
+
+- name: Create mysql service
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: mysql
+        namespace: default
+      spec:
+        type: NodePort
+        ports:
+        - name: mysql-svc
+          port: 3306
+          targetPort: 3306
+          nodePort: 30306 # Verdadero puerto del Nodo (debe ser entre 30000 y 32767)
+        selector:
+          app: mysql
+
+
+- name: Get mysql service details
+  k8s_info:
+    kind: Service
+    name: mysql
+    namespace: default
+  register: svc
+
+- name: Print the full svc variable
+  debug: var=svc
+
+- name: Set the service NodePort as a variable
+  set_fact:
+    port: "{{ svc['resources'][0]['spec']['ports'][0]['nodePort'] }}"
+
+#Este test dará error. Mejor probar directamente en el navegador
+#- name: Test a request to the service
+#  uri:
+#    url: http://{{ master_ip }}:{{ port }}/
+
+- name: Print the URL for MySQL
+  debug:
+    msg: http://{{ master_ip }}:{{ port }}/
+

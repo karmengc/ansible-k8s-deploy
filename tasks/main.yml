@@ -24,9 +24,15 @@
     jump: ACCEPT
 
 
-- name: Deploy hello-go
-  include_tasks: deploy_hello_go.yml
+#- name: Deploy hello-go
+#  include_tasks: deploy_hello_go.yml
 
 #- name: Deploy hello-k8s
 #  include_tasks: deploy_hello_k8s.yml
+
+- name: Deploy tomcat
+  include_tasks: deploy_tomcat.yml
+
+- name: Deploy MySQL
+  include_tasks: deploy_mysql.yml
 
