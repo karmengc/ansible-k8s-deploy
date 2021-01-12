@@ -45,6 +45,20 @@
               env:          #Variables de entorno para acceder a MySQL
               - name: MYSQL_ROOT_PASSWORD
                 value: "{{ k8s_deploy_mysql_passwd }}"
+              - name: MYSQL_DATABASE
+                value: example_db
+              - name: MYSQL_USER
+                value: example_db_user
+              - name: MYSQL_PASSWORD
+                value: example_db_pass
+              volumeMounts:
+                - name: db-entry
+                  mountPath: /docker-entrypoint-initdb.d
+            volumes:
+              - name: db-entry
+                hostPath:
+                  path: /mnt/nfs/kb_tomcat_mysql/db
+
 
 - name: Create mysql service
   k8s:

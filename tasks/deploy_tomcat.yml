@@ -43,10 +43,29 @@
                   cpu: "0.5"   #CPU
                   memory: "1Gi"  #Memoria
               env:          #Variables de entorno para conectar Tomcat con MySQL
-              - name: MYSQL_SERVICE_HOST
-                value: "mysql"
-              - name: MYSQL_SERVICE_PORT
-                value: "3306"
+                #              - name: MYSQL_SERVICE_HOST
+                #                value: "mysql"
+                #              - name: MYSQL_SERVICE_PORT
+                #                value: "3306"
+              - name: JDBC_URL
+                value: "jdbc:mysql://mysql:3306/example_db?connectTimeout=0&amp;socketTimeout=0&amp;autoReconnect=true"
+              - name: JDBC_USER
+                value: example_db_user
+              - name: JDBC_PASS
+                value: example_db_pass
+              volumeMounts:
+                - name: tomcat-webapps
+                  mountPath: /usr/local/tomcat/webapps
+            # Contenido del volumen: https://github.com/dmulligan/docker-example-tomcat-mysql/tree/master/tomcat adaptando context
+            # en lugar de db hemos puesto mysql y funciona.
+            volumes:
+              - name: tomcat-webapps
+                hostPath:
+                  path: /mnt/nfs/kb_tomcat_mysql/tomcat/webapps
+
+
+
+
 
 - name: Create tomcat service
   k8s:
