@@ -14,6 +14,28 @@
     source: local
 
 
+
+- name: Create tomcat users configmap
+  k8s:
+    state: present
+    definition:
+      apiversion: v1
+      kind: ConfigMap
+      metadata:
+        name: tomcat-users-config
+        namespace: default
+      data:
+        tomcat-users.xml: |
+          <?xml version="1.0" encoding="UTF-8"?>
+          <tomcat-users xmlns="http://tomcat.apache.org/xml"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://tomcat.apache.org/xml tomcat-users.xsd"
+              version="1.0">
+            <role rolename="admin"/>
+            <user username="admin" password="admin1" roles="manager-gui,manager-status,manager-script,manager-jmx,admin"/>
+          </tomcat-users>
+
+
 - name: Create tomcat
   k8s:
     state: present
@@ -47,24 +69,30 @@
                 #                value: "mysql"
                 #              - name: MYSQL_SERVICE_PORT
                 #                value: "3306"
-              - name: JDBC_URL
-                value: "jdbc:mysql://mysql:3306/example_db?connectTimeout=0&amp;socketTimeout=0&amp;autoReconnect=true"
-              - name: JDBC_USER
-                value: example_db_user
-              - name: JDBC_PASS
-                value: example_db_pass
+                - name: JDBC_URL
+                  value: "jdbc:mysql://mysql:3306/example_db?connectTimeout=0&amp;socketTimeout=0&amp;autoReconnect=true"
+                - name: JDBC_USER
+                  value: "example_db_user"
+                - name: JDBC_PASS
+                  value: "example_db_pass"
               volumeMounts:
                 - name: tomcat-webapps
                   mountPath: /usr/local/tomcat/webapps
+                - name: tomcat-users-config
+                  mountPath: /usr/local/tomcat/conf/tomcat-users.xml
+                  subPath: tomcat-users.xml
             # Contenido del volumen: https://github.com/dmulligan/docker-example-tomcat-mysql/tree/master/tomcat adaptando context
             # en lugar de db hemos puesto mysql y funciona.
             volumes:
               - name: tomcat-webapps
                 hostPath:
                   path: /mnt/nfs/kb_tomcat_mysql/tomcat/webapps
-
-
-
+              - name: tomcat-users-config
+                configMap:
+                  name: tomcat-users-config
+                  items:
+                    - key: tomcat-users.xml
+                      path: tomcat-users.xml
 
 
 - name: Create tomcat service
