@@ -101,5 +101,5 @@
 
 - name: Print the URL for MySQL
   debug:
-    msg: http://{{ master_ip }}:{{ port }}/
+    msg: http://{{ node_ip }}:{{ port }}/
 
