@@ -1,0 +1,64 @@
+---
+# Fixme check for condition
+- name: Wait until cluster is built
+  wait_for: timeout=90
+  delegate_to: localhost
+
+- name: Create directory for Kubernetes yaml files
+  file:
+    path: "{{ deployment_dir }}/yaml"
+    state: directory
+
+- name: Copy nginx-ingress-namespace.yaml file
+  template: src=nginx-ingress-namespace.yaml.j2  dest={{ deployment_dir }}/yaml/nginx-ingress-namespace.yaml
+
+- name: Copy default-backend.yaml file
+  template: src=default-backend.yaml.j2  dest={{ deployment_dir }}/yaml/default-backend.yaml
+
+- name: Copy nginx-ingress-configmap.yaml file
+  template: src=nginx-ingress-configmap.yaml.j2  dest={{ deployment_dir }}/yaml/nginx-ingress-configmap.yaml
+
+- name: Copy tcp-services-configmap.yaml file
+  template: src=tcp-services-configmap.yaml.j2  dest={{ deployment_dir }}/yaml/tcp-services-configmap.yaml
+
+- name: Copy udp-services-configmap.yaml file
+  template: src=udp-services-configmap.yaml.j2  dest={{ deployment_dir }}/yaml/udp-services-configmap.yaml
+
+- name: Copy nginx-ingress-roles.yaml file
+  template: src=nginx-ingress-roles.yaml.j2  dest={{ deployment_dir }}/yaml/nginx-ingress-roles.yaml
+
+- name: Copy nginx-ingress-deployment.yaml file
+  template: src=nginx-ingress-deployment.yaml.j2  dest={{ deployment_dir }}/yaml/nginx-ingress-deployment.yaml
+
+- name: Copy nginx-ingress-service.yaml file
+  template: src=nginx-ingress-service.yaml.j2  dest={{ deployment_dir }}/yaml/nginx-ingress-service.yaml
+
+- name: Copy nginx-ingress.yaml file
+  template: src=nginx-ingress.yaml.j2  dest={{ deployment_dir }}/yaml/nginx-ingress.yaml
+
+- name: Apply nginx-ingress-namespace.yaml file
+  shell: kubectl apply -f {{ deployment_dir }}/yaml/nginx-ingress-namespace.yaml
+
+- name: Apply default-backend.yaml file
+  shell: kubectl apply -f {{ deployment_dir }}/yaml/default-backend.yaml
+
+- name: Apply nginx-ingress-configmap.yaml file
+  shell: kubectl apply -f {{ deployment_dir }}/yaml/nginx-ingress-configmap.yaml
+
+- name: Apply tcp-services-configmap.yaml file
+  shell: kubectl apply -f {{ deployment_dir }}/yaml/tcp-services-configmap.yaml
+
+- name: Apply udp-services-configmap.yaml file
+  shell: kubectl apply -f {{ deployment_dir }}/yaml/udp-services-configmap.yaml
+
+- name: Apply nginx-ingress-roles.yaml file
+  shell: kubectl apply -f {{ deployment_dir }}/yaml/nginx-ingress-roles.yaml
+
+- name: Apply nginx-ingress-deployment.yaml file
+  shell: kubectl apply -f {{ deployment_dir }}/yaml/nginx-ingress-deployment.yaml
+
+- name: Apply nginx-ingress-service.yaml file
+  shell: kubectl apply -f {{ deployment_dir }}/yaml/nginx-ingress-service.yaml
+
+- name: Apply nginx-ingress.yaml file
+  shell: kubectl apply -f {{ deployment_dir }}/yaml/nginx-ingress.yaml

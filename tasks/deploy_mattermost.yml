@@ -1,0 +1,297 @@
+---
+
+### Fuente: https://github.com/iguchikoma/mattermost-kubernetes
+
+# Descargo la imagen en local pero hago build con la version team y no enterprise: https://hub.docker.com/r/mattermost/mattermost-prod-app#choose-edition-to-install
+
+
+- name: Get existing image
+  shell: |
+    docker image inspect master:5000/mattermost-prod-app:5.30.2
+  register: image_exists
+  ignore_errors: yes
+  changed_when: false
+
+
+- name: build mattermost container image
+  docker_image:
+    name: "mattermost-prod-app"
+    tag: "5.30.2"
+    build:
+      path: "/mnt/nfs/mattermost-docker/app"
+      pull: false
+    source: build
+  when: image_exists.rc == 1
+
+- name: Tag and push to local registry
+  docker_image:
+    name: "mattermost-prod-app"
+    tag: "5.30.2"
+    repository: "master:5000/mattermost-prod-app:5.30.2"
+    push: true
+    source: local
+  when: image_exists.rc == 1
+
+
+#Lo comento pq voy a exportar la ruta en provision
+- name: Set 777 perms for PV Folder
+  file:
+    path: "/export/nfs/mattermost-postgres-pv"
+    state: directory
+    mode: "0777"
+    recurse: yes
+
+- name: Create mattermost namespace
+  k8s:
+    name: mattermost
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Mattermost Deployment
+  k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: mattermost-app
+        labels:
+          app: mattermost
+          tier: app
+        namespace: mattermost
+      spec:
+        selector:
+          matchLabels:
+            app: mattermost
+            tier: app
+        strategy:
+          type: Recreate
+        template:
+          metadata:
+            name: mattermost-app
+            labels:
+              app: mattermost
+              tier: app
+          spec:
+            containers:
+            - name: mattermost-app
+              #image: "mattermost/mattermost-prod-app:5.30.2"
+              image: "master:5000/mattermost-prod-app:5.30.2"
+              env:
+              - name: DB_HOST
+                valueFrom:
+                  secretKeyRef:
+                    name: mattermost-env
+                    key: db-host
+              - name: DB_PORT_NUMBER
+                valueFrom:
+                  secretKeyRef:
+                    name: mattermost-env
+                    key: db-port
+              - name: MM_USERNAME
+                valueFrom:
+                  secretKeyRef:
+                    name: mattermost-env
+                    key: mm-username
+              - name: MM_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: mattermost-env
+                    key: mm-password
+              - name: MM_DBNAME
+                valueFrom:
+                  secretKeyRef:
+                    name: mattermost-env
+                    key: mm-dbname
+              volumeMounts:
+              - name: appdata
+                mountPath: /mattermost/data
+              - name: etclocaltime
+                mountPath: /etc/localtime
+                readOnly: true
+            volumes:
+            - name: appdata
+              persistentVolumeClaim:
+                claimName: mattermost-postgres-pvc
+            - name: etclocaltime
+              hostPath:
+                path: /etc/localtime
+
+
+- name: Mattermost secret
+  k8s:
+    state: present
+    definition:
+      kind: Secret
+      apiVersion: v1
+      metadata:
+        name: mattermost-env
+        namespace: mattermost
+      type: Opaque
+      data:
+        # see http://kubernetes.io/docs/user-guide/secrets/#creating-a-secret-using-kubectl-create-secret
+        # for creating secrets manually
+          # db
+        db-host: ZGI=
+          # 5432
+        db-port: NTQzMg==
+          # mmuser
+        mm-username: bW11c2Vy
+          # mmuser_password
+        mm-password: bW11c2VyX3Bhc3N3b3Jk
+          # mattermost
+        mm-dbname: bWF0dGVybW9zdA==
+
+- name: Mattermost Service
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: mattermost
+        namespace: mattermost
+        labels:
+          app: mattermost
+      spec:
+        type: NodePort
+        ports:
+        - port: 80
+          targetPort: 8000
+          name: http
+          nodePort: 30001
+        selector:
+          app: mattermost
+
+
+#########################  POSTGRES --- Base de datos para Mattermost    ############
+
+- name: Postgres configmap
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: postgres-config
+        labels:
+          app: postgres
+        namespace:
+          mattermost
+      data:
+        POSTGRES_DB: mattermost
+        POSTGRES_USER: mmuser
+        POSTGRES_PASSWORD: mmuser_password
+
+- name: Postgres deployment
+  k8s:
+    state: present
+    definition:
+      kind: Deployment
+      metadata:
+        name: postgres
+        namespace: mattermost
+        labels:
+          app: postgres
+      spec:
+        selector:
+          matchLabels:
+            app: postgres
+        strategy:
+          type: Recreate
+        template:
+          metadata:
+            labels:
+              app: postgres
+          spec:
+            containers:
+            - image: postgres:9
+              name: postgres
+              imagePullPolicy: IfNotPresent
+              ports:
+              - containerPort: 5432
+                name: postgres
+              envFrom:
+                - configMapRef:
+                    name: postgres-config
+              volumeMounts:
+              - name: mattermost-postgres-pv
+                mountPath: /var/lib/postgresql/data 
+            volumes:
+            - name: mattermost-postgres-pv
+              persistentVolumeClaim:
+                claimName: mattermost-postgres-pvc
+
+- name: Postgres PV
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: mattermost-postgres-pv
+          #        annotations:
+          #          volume.beta.kubernetes.io/storage-class: "slow"
+        labels:
+          name: mattermost-postgres-pv
+      spec:
+        #https://www.jorgedelacruz.es/2017/12/26/kubernetes-volumenes-nfs/
+        #storageClassName: storage-nfs
+        volumeMode: Filesystem
+        capacity:
+          storage: 5Gi
+        accessModes:
+          - ReadWriteMany
+        persistentVolumeReclaimPolicy: Retain
+        nfs:
+          server: "{{ node_ip }}"
+          path: /export/nfs/mattermost-postgres-pv
+
+- name: Postgres PVC
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: mattermost-postgres-pvc
+        namespace: mattermost
+        labels:
+          app: postgres
+        #annotations:
+        #  "volume.beta.kubernetes.io/storage-class": "slow"
+      spec:
+        accessModes:
+          - ReadWriteMany
+        resources:
+          requests:
+            storage: 5Gi
+        volumeMode: Filesystem
+        volumeName: mattermost-postgres-pv
+        selector:
+          matchLabels:
+            name: mattermost-postgres-pv
+
+
+- name: Postgres Service
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        labels:
+          app: postgres
+        name: db
+        namespace: mattermost
+      spec:
+        ports:
+        - port: 5432
+          targetPort: 5432
+        selector:
+          app: postgres
+
+
+
+# vim: ff=unix:ai:et:sw=2:ts=2:

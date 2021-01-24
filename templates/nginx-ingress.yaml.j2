@@ -1,0 +1,45 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ app_name }}
+  #namespace: default
+  namespace: mattermost
+spec:
+  tls:
+    - hosts:
+      - {{ app_name }}.{{ fqdn }}
+      secretName: tls-certificate
+  rules:
+  - host: {{ app_name }}.{{ fqdn }}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: {{ app_name }}
+          servicePort: {{ app_port }}
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: dashboard-ingress
+  namespace: kube-system
+  annotations:
+    nginx.org/ssl-services: "kubernetes-dashboard"
+    ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/secure-backends: "true"
+spec:
+  tls:
+    - hosts:
+      - dashboard.k8s.ingress.cluster.local
+      secretName: tls-dashb-certificate
+  rules:
+  - host: dashboard.k8s.ingress.cluster.local
+    http:
+      paths:
+      - backend:
+          serviceName: kubernetes-dashboard
+          servicePort: 443
+
+

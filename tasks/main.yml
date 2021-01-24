@@ -30,9 +30,20 @@
 #- name: Deploy hello-k8s
 #  include_tasks: deploy_hello_k8s.yml
 
-- name: Deploy tomcat
-  include_tasks: deploy_tomcat.yml
+      #- name: Deploy tomcat
+      #  include_tasks: deploy_tomcat.yml
+      #
+      #- name: Deploy MySQL
+      #  include_tasks: deploy_mysql.yml
 
-- name: Deploy MySQL
-  include_tasks: deploy_mysql.yml
+- name: Deploy Mattermost
+  include_tasks: deploy_mattermost.yml
 
+- name: Create secrets
+  include_tasks: setup_secrets.yml
+
+- name: Setup nginx ingress
+  include_tasks: setup_nginx_ingress.yml
+
+
+# vim: ff=unix:ai:et:sw=2:ts=2:
