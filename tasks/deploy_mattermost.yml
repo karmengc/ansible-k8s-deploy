@@ -5,35 +5,46 @@
 # Descargo la imagen en local pero hago build con la version team y no enterprise: https://hub.docker.com/r/mattermost/mattermost-prod-app#choose-edition-to-install
 
 
-- name: Get existing image
-  shell: |
-    docker image inspect master:5000/mattermost-prod-app:5.30.2
-  register: image_exists
-  ignore_errors: yes
-  changed_when: false
+#- name: Get existing image
+#  shell: |
+#    docker image inspect master:5000/mattermost-prod-app:5.30.2
+#  register: image_exists
+#  ignore_errors: yes
+#  changed_when: false
+#
+#
+#- name: build mattermost container image
+#  docker_image:
+#    name: "mattermost-prod-app"
+#    tag: "5.30.2"
+#    build:
+#      path: "/mnt/nfs/mattermost-docker/app"
+#      pull: false
+#    source: build
+#  when: image_exists.rc == 1
+#
+#- name: Tag and push to local registry
+#  docker_image:
+#    name: "mattermost-prod-app"
+#    tag: "5.30.2"
+#    repository: "master:5000/mattermost-prod-app:5.30.2"
+#    push: true
+#    source: local
+#  when: image_exists.rc == 1
 
+# Este repositorio permite instalar Mattermost 6 (solo disponible para amd64)
+- name: Mattermost image AMD64 version
+  set_fact:
+    #mm_image: "mattermost/mattermost-team-edition"
+    mm_image: "mattermost/mattermost-prod-app:5.30.2"
+    #mm_image: "iotops/mattermost:latest@sha256:389e967e719d3f07b2fdd84036a6b0fd5625bb615f9dab888bb61d8b60867f5e"
+  when: cluster_arch == "amd64"
 
-- name: build mattermost container image
-  docker_image:
-    name: "mattermost-prod-app"
-    tag: "5.30.2"
-    build:
-      path: "/mnt/nfs/mattermost-docker/app"
-      pull: false
-    source: build
-  when: image_exists.rc == 1
+- name: Mattermost image AMD64 version
+  set_fact:
+    mm_image: "iotops/mattermost:latest@sha256:4640bd9db214a08e37cba67bc4d286a6a4ffd5f0ebc8f0bd70e404572bca1ff5"
+  when: cluster_arch == "arm64"
 
-- name: Tag and push to local registry
-  docker_image:
-    name: "mattermost-prod-app"
-    tag: "5.30.2"
-    repository: "master:5000/mattermost-prod-app:5.30.2"
-    push: true
-    source: local
-  when: image_exists.rc == 1
-
-
-#Lo comento pq voy a exportar la ruta en provision
 - name: Set 777 perms for PV Folder
   file:
     path: "/export/nfs/mattermost-postgres-pv"
@@ -76,8 +87,8 @@
           spec:
             containers:
             - name: mattermost-app
-              #image: "mattermost/mattermost-prod-app:5.30.2"
-              image: "master:5000/mattermost-prod-app:5.30.2"
+              #image: "master:5000/mattermost-prod-app:5.30.2"
+              image: "{{ mm_image }}"
               env:
               - name: DB_HOST
                 valueFrom:
@@ -184,6 +195,18 @@
         POSTGRES_USER: mmuser
         POSTGRES_PASSWORD: mmuser_password
 
+
+- name: Postgres image AMD64 version
+  set_fact:
+    pg_image: "postgres:9"
+  when: cluster_arch == "amd64"
+
+- name: Postgres image AMD64 version
+  set_fact:
+    pg_image: "arm64v8/postgres:9"
+  when: cluster_arch == "arm64"
+
+
 - name: Postgres deployment
   k8s:
     state: present
@@ -206,7 +229,7 @@
               app: postgres
           spec:
             containers:
-            - image: postgres:9
+            - image: "{{ pg_image }}"
               name: postgres
               imagePullPolicy: IfNotPresent
               ports:

@@ -1,18 +1,37 @@
 ---
 
+- name: Tomcat image AMD64 arch
+  set_fact:
+    tomcat_image: "tomcat:9"
+  when: cluster_arch == 'amd64'
+
+- name: Tomcat image ARM64 arch
+  set_fact:
+    tomcat_image: "tomcat:9@sha256:400d10be96fc90c981021031800834daefe0b41b9cc3d84bb92eb0164613dd04"
+  when: cluster_arch == 'arm64'
+
+
+
 - name: Pull Tomcat image
   docker_image:
-    name: tomcat:8
+    name: "{{ tomcat_image }}"
     source: pull
 
 - name: push tomcat container image to local registry
   docker_image:
     name: "tomcat"
-    tag: "8"
-    repository: "master:5000/tomcat:8"
+    tag: "9"
+    repository: "master:5000/tomcat:9"
     push: true
     source: local
 
+
+- name: Create myweb namespace
+  k8s:
+    name: myweb
+    api_version: v1
+    kind: Namespace
+    state: present
 
 
 - name: Create tomcat users configmap
@@ -23,7 +42,7 @@
       kind: ConfigMap
       metadata:
         name: tomcat-users-config
-        namespace: default
+        namespace: myweb
       data:
         tomcat-users.xml: |
           <?xml version="1.0" encoding="UTF-8"?>
@@ -44,7 +63,7 @@
       kind: ReplicationController
       metadata:
         name: myweb-tomcat
-        namespace: default
+        namespace: myweb
       spec:
         replicas: 1
         selector:
@@ -57,7 +76,7 @@
             containers:
             - name: myweb
               imagePullPolicy: IfNotPresent
-              image: master:5000/tomcat:8
+              image: master:5000/tomcat:9
               ports:
               - containerPort: 8080
               resources:           #Recursos asignados al contenedor
@@ -103,7 +122,7 @@
       kind: Service
       metadata:
         name: myweb
-        namespace: default
+        namespace: myweb
       spec:
         type: NodePort
         ports:
@@ -124,7 +143,7 @@
   k8s_info:
     kind: Service
     name: myweb
-    namespace: default
+    namespace: myweb
   register: svc
 
 - name: Print the full svc variable

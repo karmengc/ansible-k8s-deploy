@@ -1,17 +1,5 @@
 ---
 
-# tasks file for ansible-k8s-deploy
-#
-
-#- name: PV and PVC NFS template upload
-#  template:
-#    src: "nfs-pv-pvc.yaml.j2"
-#    dest: "/home/{{ provision_cluster_user }}"
-#    owner: "{{ provision_cluster_user }}"
-#    group: wheel
-#    mode: '0644'
-
-
 - name: Docker configuration
   include_tasks: docker_conf.yml
 
@@ -30,11 +18,11 @@
 #- name: Deploy hello-k8s
 #  include_tasks: deploy_hello_k8s.yml
 
-      #- name: Deploy tomcat
-      #  include_tasks: deploy_tomcat.yml
-      #
-      #- name: Deploy MySQL
-      #  include_tasks: deploy_mysql.yml
+- name: Deploy tomcat
+  include_tasks: deploy_tomcat.yml
+
+- name: Deploy MySQL
+  include_tasks: deploy_mysql.yml
 
 - name: Deploy Mattermost
   include_tasks: deploy_mattermost.yml

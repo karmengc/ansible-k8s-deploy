@@ -1,15 +1,25 @@
 ---
 
+- name: Tomcat image AMD64 arch
+  set_fact:
+    mysql_image: "mysql/mysql-server:latest"
+  when: cluster_arch == 'amd64'
+
+- name: Tomcat image ARM64 arch
+  set_fact:
+    mysql_image: "mysql/mysql-server:latest@sha256:77234f356057be9326e30a39cf060bb83e04d94211b4dbfe67887639e1f3561e"
+  when: cluster_arch == 'arm64'
+
 - name: Pull MySQL image
   docker_image:
-    name: mysql:5.7
+    name: "{{ mysql_image }}"
     source: pull
 
 - name: push mysql container image to local registry
   docker_image:
-    name: "mysql"
-    tag: "5.7"
-    repository: "master:5000/mysql:5.7"
+    name: "{{ mysql_image }}"
+    tag: "latest"
+    repository: "master:5000/mysql-server:latest"
     push: true
     source: local
 
@@ -22,7 +32,7 @@
       kind: ReplicationController
       metadata:
         name: myweb-mysql
-        namespace: default
+        namespace: myweb
       spec:
         replicas: 1
         selector:
@@ -35,7 +45,7 @@
             containers:
             - name: mysql
               imagePullPolicy: IfNotPresent
-              image: master:5000/mysql:5.7
+              image: master:5000/mysql-server:latest
               ports:
               - containerPort: 3306
               resources:           #Recursos asignados al contenedor
@@ -68,7 +78,7 @@
       kind: Service
       metadata:
         name: mysql
-        namespace: default
+        namespace: myweb
       spec:
         type: NodePort
         ports:
@@ -84,7 +94,7 @@
   k8s_info:
     kind: Service
     name: mysql
-    namespace: default
+    namespace: myweb
   register: svc
 
 - name: Print the full svc variable
