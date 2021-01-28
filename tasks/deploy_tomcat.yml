@@ -10,8 +10,6 @@
     tomcat_image: "tomcat:9@sha256:400d10be96fc90c981021031800834daefe0b41b9cc3d84bb92eb0164613dd04"
   when: cluster_arch == 'arm64'
 
-
-
 - name: Pull Tomcat image
   docker_image:
     name: "{{ tomcat_image }}"
@@ -84,10 +82,6 @@
                   cpu: "0.5"   #CPU
                   memory: "1Gi"  #Memoria
               env:          #Variables de entorno para conectar Tomcat con MySQL
-                #              - name: MYSQL_SERVICE_HOST
-                #                value: "mysql"
-                #              - name: MYSQL_SERVICE_PORT
-                #                value: "3306"
                 - name: JDBC_URL
                   value: "jdbc:mysql://mysql:3306/example_db?connectTimeout=0&amp;socketTimeout=0&amp;autoReconnect=true"
                 - name: JDBC_USER
@@ -153,10 +147,10 @@
   set_fact:
     port: "{{ svc['resources'][0]['spec']['ports'][0]['nodePort'] }}"
 
-      #Esto da error 404
-      #- name: Test a request to the service
-      #  uri:
-      #    url: http://{{ master_ip }}:{{ port }}/
+#Esto da error 404
+- name: Test a request to the service
+  uri:
+    url: http://{{ node_ip }}:{{ port }}/
 
 - name: Print the URL for Tomcat
   debug:

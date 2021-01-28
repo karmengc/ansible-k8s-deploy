@@ -2,12 +2,12 @@
 
 - name: Tomcat image AMD64 arch
   set_fact:
-    mysql_image: "mysql/mysql-server:latest"
+    mysql_image: "mariadb:latest"
   when: cluster_arch == 'amd64'
 
 - name: Tomcat image ARM64 arch
   set_fact:
-    mysql_image: "mysql/mysql-server:latest@sha256:77234f356057be9326e30a39cf060bb83e04d94211b4dbfe67887639e1f3561e"
+    mysql_image: "mariadb:latest@sha256:c892a2d0194f19d0aa29fa165cdbfeb6be619cbf68b7a9f715369f7f08c05311"
   when: cluster_arch == 'arm64'
 
 - name: Pull MySQL image
@@ -17,9 +17,9 @@
 
 - name: push mysql container image to local registry
   docker_image:
-    name: "{{ mysql_image }}"
+    name: "mariadb"
     tag: "latest"
-    repository: "master:5000/mysql-server:latest"
+    repository: "master:5000/mariadb:latest"
     push: true
     source: local
 
@@ -45,7 +45,7 @@
             containers:
             - name: mysql
               imagePullPolicy: IfNotPresent
-              image: master:5000/mysql-server:latest
+              image: master:5000/mariadb:latest
               ports:
               - containerPort: 3306
               resources:           #Recursos asignados al contenedor
@@ -80,12 +80,11 @@
         name: mysql
         namespace: myweb
       spec:
-        type: NodePort
+        type: ClusterIP
         ports:
         - name: mysql-svc
           port: 3306
           targetPort: 3306
-          nodePort: 30306 # Verdadero puerto del Nodo (debe ser entre 30000 y 32767)
         selector:
           app: mysql
 
@@ -99,15 +98,6 @@
 
 - name: Print the full svc variable
   debug: var=svc
-
-- name: Set the service NodePort as a variable
-  set_fact:
-    port: "{{ svc['resources'][0]['spec']['ports'][0]['nodePort'] }}"
-
-#Este test dará error. Mejor probar directamente en el navegador
-#- name: Test a request to the service
-#  uri:
-#    url: http://{{ master_ip }}:{{ port }}/
 
 - name: Print the URL for MySQL
   debug:
