@@ -1,19 +1,24 @@
 ---
 
-- name: Registry image AMD arch
+#- name: Registry image AMD arch
+#  set_fact:
+#    registry_image: "registry:2"
+#  when: cluster_arch == "amd64"
+#
+#- name: Registry image ARM64 arch
+#  set_fact:
+#    registry_image: "arm64v8/registry:latest"
+#  when: cluster_arch == "arm64"
+#
+#- name: Asegurar que la imagen del contenedor de registro está presente
+#  docker_image:
+#    name: "{{ registry_image }}"
+#    source: pull
+
+
+- name: Registry image
   set_fact:
     registry_image: "registry:2"
-  when: cluster_arch == "amd64"
-
-- name: Registry image ARM64 arch
-  set_fact:
-    registry_image: "arm64v8/registry:latest"
-  when: cluster_arch == "arm64"
-
-- name: Asegurar que la imagen del contenedor de registro está presente
-  docker_image:
-    name: "{{ registry_image }}"
-    source: pull
 
 - name: Crear carpeta var lib registry
   file:

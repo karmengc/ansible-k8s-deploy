@@ -5,7 +5,6 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: {{ app_name }}
-  #namespace: default
   namespace: {{ app_name }}
 spec:
   tls:
@@ -22,17 +21,21 @@ spec:
           servicePort: {{ app_port }}
 ---
 {% endfor %}
-
+{% if kubernetes_enable_web_ui %}
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: dashboard-ingress
-  namespace: kube-system
+  namespace: kubernetes-dashboard
   annotations:
-    nginx.org/ssl-services: "kubernetes-dashboard"
-    ingress.kubernetes.io/ssl-passthrough: "true"
-    nginx.ingress.kubernetes.io/secure-backends: "true"
+    #nginx.org/ssl-services: "kubernetes-dashboard"
+    #ingress.kubernetes.io/ssl-passthrough: "true"
+    #nginx.ingress.kubernetes.io/secure-backends: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/configuration-snippet: |-
+      proxy_ssl_server_name on;
+      proxy_ssl_name $host;
 spec:
   tls:
     - hosts:
@@ -42,8 +45,9 @@ spec:
   - host: dashboard.k8s.ingress.cluster.local
     http:
       paths:
-      - backend:
+      - path: /
+        backend:
           serviceName: kubernetes-dashboard
           servicePort: 443
-
+{% endif %}
 

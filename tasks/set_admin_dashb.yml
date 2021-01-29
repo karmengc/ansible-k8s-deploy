@@ -1,0 +1,38 @@
+---
+
+- name: Create adminuser service account
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: admin-user
+        namespace: kubernetes-dashboard
+
+- name: Create ClusterRoleBinding for adminuser
+  k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: admin-user
+        namespace: kubernetes-dashboard
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: cluster-admin
+      subjects:
+      - kind: ServiceAccount
+        name: admin-user
+        namespace: kubernetes-dashboard
+
+- name: Get Token for login
+  shell: "kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}')"
+  register: admin_token
+
+
+- name: Login at dashboard and use this token
+  debug: var=admin_token.stdout_lines
+

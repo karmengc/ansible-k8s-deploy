@@ -24,11 +24,20 @@
 - name: Deploy MySQL
   include_tasks: deploy_mysql.yml
 
-- name: Deploy Mattermost
-  include_tasks: deploy_mattermost.yml
+    #- name: Deploy Mattermost
+    #  include_tasks: deploy_mattermost.yml
 
-- name: Create secrets
-  include_tasks: setup_secrets.yml
+- name: Create secrets for apps
+  include_tasks: setup_secrets_apps.yml
+  when: apps_to_deploy is defined
+
+- name: Create secrets for k8s dashboard
+  include_tasks: setup_secrets_dashb.yml
+  when: kubernetes_enable_web_ui
+
+- name: Create admin user for dashboard
+  include_tasks: set_admin_dashb.yml
+  when: kubernetes_enable_web_ui and kubernetes_create_admin_dashb_user
 
 - name: Setup nginx ingress
   include_tasks: setup_nginx_ingress.yml

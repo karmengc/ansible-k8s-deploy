@@ -1,18 +1,23 @@
 ---
 
-- name: Tomcat image AMD64 arch
-  set_fact:
-    mysql_image: "mariadb:latest"
-  when: cluster_arch == 'amd64'
+#- name: Tomcat image AMD64 arch
+#  set_fact:
+#    mysql_image: "mariadb:latest"
+#  when: cluster_arch == 'amd64'
+#
+#- name: Tomcat image ARM64 arch
+#  set_fact:
+#    mysql_image: "mariadb:latest@sha256:c892a2d0194f19d0aa29fa165cdbfeb6be619cbf68b7a9f715369f7f08c05311"
+#  when: cluster_arch == 'arm64'
+#
+#- name: Pull MySQL image
+#  docker_image:
+#    name: "{{ mysql_image }}"
+#    source: pull
 
-- name: Tomcat image ARM64 arch
-  set_fact:
-    mysql_image: "mariadb:latest@sha256:c892a2d0194f19d0aa29fa165cdbfeb6be619cbf68b7a9f715369f7f08c05311"
-  when: cluster_arch == 'arm64'
-
-- name: Pull MySQL image
+- name: Pull MariaDB image
   docker_image:
-    name: "{{ mysql_image }}"
+    name: "mariadb:latest"
     source: pull
 
 - name: push mysql container image to local registry
@@ -98,8 +103,4 @@
 
 - name: Print the full svc variable
   debug: var=svc
-
-- name: Print the URL for MySQL
-  debug:
-    msg: http://{{ node_ip }}:{{ port }}/
 
