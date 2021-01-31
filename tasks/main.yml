@@ -24,8 +24,11 @@
 - name: Deploy MySQL
   include_tasks: deploy_mysql.yml
 
-    #- name: Deploy Mattermost
-    #  include_tasks: deploy_mattermost.yml
+- name: Deploy Mattermost
+  include_tasks: deploy_mattermost.yml
+
+- name: Deploy Prometheus
+  include_tasks: deploy_prometheus.yml
 
 - name: Create secrets for apps
   include_tasks: setup_secrets_apps.yml

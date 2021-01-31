@@ -1,0 +1,194 @@
+---
+
+- name: Prometheus image AMD64 version
+  set_fact:
+    prome_image: "prom/prometheus:v2.24.1"
+  when: cluster_arch == "amd64"
+
+- name: Prometheus image AMD64 version
+  set_fact:
+    prome_image: "prom/prometheus:v2.24.1@sha256:e205c8b6cdcc26cfce73fa510f0bbb924101e3182c63835f27081cc5004677d3"
+  when: cluster_arch == "arm64"
+
+- name: Create monitoring namespace
+  k8s:
+    name: monitoring
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Create ClusterRole for Prometheus
+  k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      metadata:
+        name: prometheus
+        namespace: monitoring
+      rules:
+      - apiGroups: [""]
+        resources:
+        - nodes
+        - services
+        - endpoints
+        - pods
+        verbs: ["get","list","watch"]
+      - apiGroups:
+        - extensions
+        resources:
+        - ingresses
+        verbs: ["get","list","watch"]
+
+
+
+- name: Create prometheus service account
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: prometheus
+        namespace: monitoring
+
+
+
+- name: Create ClusterRoleBinding for prometheus
+  k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: prometheus
+        namespace: monitoring
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: prometheus
+      subjects:
+      - kind: ServiceAccount
+        name: prometheus
+        namespace: monitoring
+
+
+- name: Create Prometheus configmap
+  k8s:
+    state: present
+    definition:
+      apiversion: v1
+      kind: ConfigMap
+      metadata:
+        name: prometheus-config
+        namespace: monitoring
+      data:
+        prometheus.yml: |
+          global:
+            scrape_interval: 10s
+          scrape_configs:
+            - job_name: 'kubelet'
+              kubernetes_sd_configs:
+              - role: node
+              scheme: https
+              tls_config:
+                ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                insecure_skip_verify: true  # Required with Minikube.
+            - job_name: 'cadvisor'
+              kubernetes_sd_configs:
+              - role: node
+              scheme: https
+              tls_config:
+                ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                insecure_skip_verify: true  # Required with Minikube.
+              metrics_path: /metrics/cadvisor
+            - job_name: 'k8apiserver'
+              kubernetes_sd_configs:
+              - role: endpoints
+              scheme: https
+              tls_config:
+                ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+                insecure_skip_verify: true  # Required if using Minikube.
+              bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+              relabel_configs:
+              - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+                action: keep
+                regex: default;kubernetes;https
+            - job_name: 'k8services'
+              kubernetes_sd_configs:
+              - role: endpoints
+              relabel_configs:
+              - source_labels:
+                  - __meta_kubernetes_namespace
+                  - __meta_kubernetes_service_name
+                action: drop
+                regex: default;kubernetes
+              - source_labels:
+                  - __meta_kubernetes_namespace
+                regex: default
+                action: keep
+              - source_labels: [__meta_kubernetes_service_name]
+                target_label: job
+            - job_name: 'k8pods'
+              kubernetes_sd_configs:
+              - role: pod
+              relabel_configs:
+              - source_labels: [__meta_kubernetes_pod_container_port_name]
+                regex: metrics
+                action: keep
+              - source_labels: [__meta_kubernetes_pod_container_name]
+                target_label: job
+
+- name: Prometheus Deployment
+  k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: prometheus
+        namespace: monitoring
+      spec:
+        selector:
+          matchLabels:
+            app: prometheus
+        template:
+          metadata:
+            labels:
+              app: prometheus
+          spec:
+            containers:
+            - name: prometheus
+              #image: "master:5000/prometheus:v2.1.0"
+              image: "{{ prome_image }}"
+              volumeMounts:
+              - name: config-volume
+                mountPath: /etc/prometheus
+            volumes:
+            - name: config-volume
+              configMap:
+                name: prometheus-config
+
+
+- name: Prometheus Service
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: monitoring
+        namespace: monitoring
+      spec:
+        #type: LoadBalancer
+        type: NodePort
+        ports:
+        - protocol: TCP
+          port: 9090
+          targetPort: 9090
+          nodePort: 30909
+        selector:
+          app: prometheus
+
+
+# vim: ff=unix:ai:et:sw=2:ts=2:
