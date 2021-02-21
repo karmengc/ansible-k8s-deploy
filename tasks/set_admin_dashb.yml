@@ -33,6 +33,6 @@
   register: admin_token
 
 
-- name: Login at dashboard and use this token
+- name: For Dashboard login use this token
   debug: var=admin_token.stdout_lines
 

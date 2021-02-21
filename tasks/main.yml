@@ -30,6 +30,9 @@
 - name: Deploy Prometheus
   include_tasks: deploy_prometheus.yml
 
+- name: Deploy Drupal
+  include_tasks: deploy_drupal.yml
+
 - name: Create secrets for apps
   include_tasks: setup_secrets_apps.yml
   when: apps_to_deploy is defined

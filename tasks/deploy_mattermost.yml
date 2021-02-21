@@ -40,7 +40,7 @@
     #mm_image: "iotops/mattermost:latest@sha256:389e967e719d3f07b2fdd84036a6b0fd5625bb615f9dab888bb61d8b60867f5e"
   when: cluster_arch == "amd64"
 
-- name: Mattermost image AMD64 version
+- name: Mattermost image ARM64 version
   set_fact:
     mm_image: "iotops/mattermost:latest@sha256:4640bd9db214a08e37cba67bc4d286a6a4ffd5f0ebc8f0bd70e404572bca1ff5"
   when: cluster_arch == "arm64"
