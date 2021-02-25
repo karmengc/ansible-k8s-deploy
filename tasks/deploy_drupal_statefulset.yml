@@ -1,0 +1,597 @@
+---
+
+### Fuente: https://www.acolono.com/en/blog/drupal-kubernetes-getting-started-insights 
+
+
+- name: Drupal image
+  set_fact:
+    drupal_image: "drupal:8.6.15-apache"
+
+
+- name: Set 777 perms for Drupal PV Folder
+  file:
+    path: "/export/nfs/drupal-pv"
+    state: directory
+    mode: "0777"
+    recurse: yes
+
+- name: Create drupal namespace
+  k8s:
+    name: drupal
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Drupal PV
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: drupal-pv
+        namespace: drupal
+          #        annotations:
+          #          volume.beta.kubernetes.io/storage-class: "slow"
+        labels:
+          name: drupal-pv
+      spec:
+        #https://www.jorgedelacruz.es/2017/12/26/kubernetes-volumenes-nfs/
+        #storageClassName: storage-nfs
+        volumeMode: Filesystem
+        capacity:
+          storage: 3Gi
+        accessModes:
+          - ReadWriteMany
+        persistentVolumeReclaimPolicy: Retain
+        nfs:
+          server: "{{ node_ip }}"
+          path: /export/nfs/drupal-pv
+
+- name: Drupal PVC
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: drupal-pvc
+        namespace: drupal
+        labels:
+          app: drupal
+      spec:
+        accessModes:
+        #- ReadWriteOnce
+        - ReadWriteMany
+        resources:
+          requests:
+            storage: 3Gi
+        volumeMode: Filesystem
+        volumeName: drupal-pv
+        selector:
+          matchLabels:
+            name: drupal-pv
+
+- name: Drupal Deployment
+  k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: drupal
+        namespace: drupal
+        labels:
+          app: drupal
+          tier: frontend
+      spec:
+        selector:
+          matchLabels:
+            app: drupal
+            tier: frontend
+        strategy:
+          type: Recreate
+        template:
+          metadata:
+            labels:
+              app: drupal
+              tier: frontend
+          spec:
+            initContainers:
+              - name: init-sites-volume
+                image: "{{ drupal_image }}"
+                command: ['/bin/bash', '-c']
+                args: ['cp -r /var/www/html/sites /data; chown www-data:www-data /data/ -R']
+                volumeMounts:
+                - mountPath: /data
+                  name: drupal-pvc
+            containers:
+            - image: "{{ drupal_image }}"
+              imagePullPolicy: IfNotPresent
+              name: drupal
+              env:
+              - name: DRUPAL_DATABASE_HOST
+                #value: drupal-mysql
+                value: mariadb
+              - name: DRUPAL_DATABASE_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: mysql-pass
+                    key: password
+              ports:
+              - containerPort: 80
+                name: drupal
+              volumeMounts:
+              - name: drupal-pvc
+                mountPath: /var/www/html/modules
+                subPath: modules
+              - name: drupal-pvc
+                mountPath: /var/www/html/profiles
+                subPath: profiles
+              - name: drupal-pvc
+                mountPath: /var/www/html/sites
+                subPath: sites
+              - name: drupal-pvc
+                mountPath: /var/www/html/themes
+                subPath: themes
+            volumes:
+              - name: drupal-pvc
+                persistentVolumeClaim:
+                  claimName: drupal-pvc
+
+
+- name: Drupal secret
+  k8s:
+    state: present
+    definition:
+      kind: Secret
+      apiVersion: v1
+      metadata:
+        name: mysql-pass
+        namespace: drupal
+      type: Opaque
+      data:
+        # see http://kubernetes.io/docs/user-guide/secrets/#creating-a-secret-using-kubectl-create-secret
+        # for creating secrets manually
+        # Command-line:  echo -n "Pass1" | base64
+        password: UGFzczE=
+
+- name: Drupal Service
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: drupal
+        namespace: drupal
+        labels:
+          app: drupal
+      spec:
+        type: NodePort
+        ports:
+        - name: web
+          port: 80
+          targetPort: 80
+          nodePort: 30010 # Verdadero puerto del Nodo (debe ser entre 30000 y 32767)
+        #type: LoadBalancer
+        #ports:
+        #- port: 80
+        #  name: web
+        #  targetPort: 8010
+        selector:
+          app: drupal
+          tier: frontend
+
+
+
+
+#########################  MYSQL --- Base de datos para Drupal    ############
+#- name: MySQL image
+#  set_fact:
+#    mysql_image: "mysql:5.6"
+
+- name: Set 777 perms for Drupal PV DB Folder
+  file:
+    path: "/export/nfs/{{ item }}"
+    state: directory
+    mode: "0777"
+    recurse: yes
+  with_items:
+    - "pv0"
+    - "pv1"
+    - "pv2"
+
+- name: Drupal PV DB_0
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: pv-nfs-pv0
+        namespace: drupal
+        labels:
+          type: local
+      spec:
+        storageClassName: manual
+        #volumeMode: Filesystem
+        capacity:
+          storage: 2Gi
+        accessModes:
+          - ReadWriteOnce
+        #persistentVolumeReclaimPolicy: Retain
+        nfs:
+          server: "{{ node_ip }}"
+          path: "/export/nfs/pv0"
+
+- name: Drupal PV DB_1
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: pv-nfs-pv1
+        namespace: drupal
+        labels:
+          type: local
+      spec:
+        storageClassName: manual
+        #volumeMode: Filesystem
+        capacity:
+          storage: 2Gi
+        accessModes:
+          - ReadWriteOnce
+        #persistentVolumeReclaimPolicy: Retain
+        nfs:
+          server: "{{ node_ip }}"
+          path: "/export/nfs/pv1"
+
+- name: Drupal PV DB_2
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: pv-nfs-pv2
+        namespace: drupal
+        labels:
+          type: local
+      spec:
+        storageClassName: manual
+        #volumeMode: Filesystem
+        capacity:
+          storage: 2Gi
+        accessModes:
+          - ReadWriteOnce
+        #persistentVolumeReclaimPolicy: Retain
+        nfs:
+          server: "{{ node_ip }}"
+          path: "/export/nfs/pv2"
+
+
+
+### Las siguientes tareas han sido basadas en el proyecto: https://github.com/Yolean/kubernetes-mysql-cluster ###
+
+- name: MariaDB ConfigMap task
+  import_tasks: deploy_drupal_mariadb_configmap.yml
+
+- name: MariaDB Headless service to control the network domain
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: mariadb
+        namespace: drupal
+        annotations:
+          service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+      spec:
+        publishNotReadyAddresses: true
+        clusterIP: None
+        selector:
+          app: mariadb
+        ports:
+          - port: 3306
+            name: mysql
+          - port: 4444
+            name: sst
+          - port: 4567
+            name: replication
+          - protocol: UDP
+            port: 4567
+            name: replicationudp
+          - port: 4568
+            name: ist
+
+
+- name: MariaDB Ready service used with getent hosts to check how many pods are ready
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: mariadb-ready
+        namespace: drupal
+        annotations:
+          service.alpha.kubernetes.io/tolerate-unready-endpoints: "false"
+      spec:
+        publishNotReadyAddresses: false
+        clusterIP: None
+        selector:
+          app: mariadb
+
+- name: MySQL Service
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: mysql
+        namespace: drupal
+      spec:
+        ports:
+        - port: 3306
+          name: mysql
+        selector:
+          app: mariadb
+
+- name: Drupal DB StatefulSet
+  k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: mariadb
+        namespace: drupal
+      spec:
+        selector:
+          matchLabels:
+            app: mariadb
+        serviceName: "mariadb"
+        replicas: 3
+        podManagementPolicy: Parallel
+        template:
+          metadata:
+            labels:
+              app: mariadb
+            annotations:
+              prometheus.io/scrape: "true"
+              prometheus.io/port: "9104"
+          spec:
+            terminationGracePeriodSeconds: 30
+            initContainers:
+            - name: init-config
+              command: ['/bin/bash', '/etc/mysql/conf.d-configmap/init.sh']
+              env:
+              - name: K8S_NODE_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: spec.nodeName
+              - name: POD_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+              - name: POD_NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+              - name: DATADIR
+                value: /data/db
+              - name: AUTO_RECOVERY_MODE
+                value: confirm-force-bootstrap
+              - name: WSREP_CLUSTER_ADDRESS
+                value: "gcomm://mariadb-0.mariadb,mariadb-1.mariadb,mariadb-2.mariadb"
+              workingDir: /etc/mysql/conf.d-configmap
+              volumeMounts:
+              - name: mysql
+                mountPath: /data
+              - name: conf-readonly
+                mountPath: /etc/mysql/conf.d-configmap
+              - name: conf
+                mountPath: /etc/mysql/conf.d
+              - name: initdb
+                mountPath: /docker-entrypoint-initdb.d
+              image: mariadb:10.2.36-bionic@sha256:b7be3ade3d5441c79b5c8a9cf2c2269f14bf420876a06def7d50e1763f042238
+            containers:
+            - name: mariadb
+              image: mariadb:10.2.36-bionic@sha256:b7be3ade3d5441c79b5c8a9cf2c2269f14bf420876a06def7d50e1763f042238
+              ports:
+              - containerPort: 3306
+                name: mysql
+              - containerPort: 4444
+                name: sst
+              - containerPort: 4567
+                name: replication
+              - containerPort: 4567
+                protocol: UDP
+                name: replicationudp
+              - containerPort: 4568
+                name: ist
+              env:
+              - name: MYSQL_ROOT_HOST
+                value: "localhost"
+              - name: MYSQL_ALLOW_EMPTY_PASSWORD
+                value: "yes"
+              - name: MYSQL_INITDB_SKIP_TZINFO
+                value: "yes"
+              - name: MYSQL_DATABASE
+                value: drupal-db
+              #- name: MYSQL_ROOT_PASSWORD
+              #  valueFrom:
+              #    secretKeyRef:
+              #      name: mysql-pass
+              #      key: password
+              readinessProbe:
+                exec:
+                  command:
+                  - /bin/sh
+                  - -ec
+                  - test ON = "$(mysql -e "SHOW STATUS LIKE 'wsrep_ready';" -N -B | sed 's/wsrep_ready\t//')"
+                initialDelaySeconds: 30
+              livenessProbe:
+                exec:
+                  command:
+                  - mysql
+                  - -e
+                  - "SHOW DATABASES;"
+                # might need to be tweaked for large initial state transfers
+                initialDelaySeconds: 60
+              volumeMounts:
+              - name: mysql
+                mountPath: /data
+              - name: conf
+                mountPath: /etc/mysql/conf.d
+              - name: initdb
+                mountPath: /docker-entrypoint-initdb.d
+            - name: metrics
+              image: prom/mysqld-exporter:v0.12.1@sha256:9fe9938c4ac9216cc24005144338f14fac4f604f139b481cc541bead008db3c1
+              env:
+              - name: DATA_SOURCE_NAME
+                value: root@(localhost:3306)/
+              ports:
+              - containerPort: 9104
+            volumes:
+            - name: conf
+              emptyDir: {}
+            - name: conf-readonly
+              configMap:
+                name: conf-d
+            - name: initdb
+              emptyDir: {}
+        volumeClaimTemplates:
+        - metadata:
+            name: mysql
+          spec:
+            accessModes: [ "ReadWriteOnce" ]
+            storageClassName: manual
+            resources:
+              requests:
+                storage: 2Gi
+
+
+
+            #- name: Drupal DB StatefulSet
+            #  k8s:
+            #    state: present
+            #    definition:
+            #      apiVersion: apps/v1
+            #      kind: StatefulSet
+            #      metadata:
+            #        name: mysql-innodb-cluster
+            #        namespace: drupal
+            #        labels:
+            #          app: drupal
+            #      spec:
+            #        selector:
+            #          matchLabels:
+            #            app: drupal
+            #            tier: backend
+            #        serviceName: "mysql-innodb-cluster"
+            #        replicas: 3
+            #        podManagementPolicy: Parallel
+            #        template:
+            #          metadata:
+            #            labels:
+            #              app: drupal
+            #              tier: backend
+            #          spec:
+            #            containers:
+            #            - image: "{{ mysql_image }}"
+            #              imagePullPolicy: IfNotPresent
+            #              name: mysql
+            #              env:
+            #              - name: MYSQL_DATABASE
+            #                value: drupal-db
+            #              - name: MYSQL_ROOT_PASSWORD
+            #                valueFrom:
+            #                  secretKeyRef:
+            #                    name: mysql-pass
+            #                    key: password
+            #              ports:
+            #              - containerPort: 3306
+            #                name: mysql
+            #              volumeMounts:
+            #              - name: mysql-stateful-storage
+            #                mountPath: /var/lib/mysql
+            #        volumeClaimTemplates:
+            #         - metadata:
+            #             name: mysql-stateful-storage
+            #           spec:
+            #             accessModes:
+            #               - ReadWriteOnce
+            #             storageClassName: manual
+            #             resources:
+            #               requests:
+            #                 storage: 3Gi
+
+
+                   #- name: Drupal DB Service_0
+                   #  k8s:
+                   #    state: present
+                   #    definition:
+                   #      apiVersion: v1
+                   #      kind: Service
+                   #      metadata:
+                   #        name: mysql-innodb-cluster-0
+                   #        namespace: drupal
+                   #        labels:
+                   #          app: drupal
+                   #      spec:
+                   #        ports:
+                   #        - port: 3306
+                   #        selector:
+                   #          app: drupal
+                   #          tier: backend
+                   #          statefulset.kubernetes.io/pod-name: mysql-innodb-cluster-0
+                   #        clusterIP: None
+                   #
+                   #- name: Drupal DB Service_1
+                   #  k8s:
+                   #    state: present
+                   #    definition:
+                   #      apiVersion: v1
+                   #      kind: Service
+                   #      metadata:
+                   #        name: mysql-innodb-cluster-1
+                   #        namespace: drupal
+                   #        labels:
+                   #          app: drupal
+                   #      spec:
+                   #        ports:
+                   #        - port: 3306
+                   #        selector:
+                   #          app: drupal
+                   #          tier: backend
+                   #          statefulset.kubernetes.io/pod-name: mysql-innodb-cluster-1
+                   #        clusterIP: None
+                   #
+                   #- name: Drupal DB Service_2
+                   #  k8s:
+                   #    state: present
+                   #    definition:
+                   #      apiVersion: v1
+                   #      kind: Service
+                   #      metadata:
+                   #        name: mysql-innodb-cluster-2
+                   #        namespace: drupal
+                   #        labels:
+                   #          app: drupal
+                   #      spec:
+                   #        ports:
+                   #        - port: 3306
+                   #        selector:
+                   #          app: drupal
+                   #          tier: backend
+                   #          statefulset.kubernetes.io/pod-name: mysql-innodb-cluster-2
+                   #        clusterIP: None
+
+
+
+# vim: ff=unix:ai:et:sw=2:ts=2:
