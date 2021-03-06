@@ -202,6 +202,9 @@
     - "pv1"
     - "pv2"
 
+
+# Almacenamiento persistente manual (storageClassname manual):
+# https://medium.com/@myte/kubernetes-nfs-and-dynamic-nfs-provisioning-97e2afb8b4a9
 - name: Drupal PV DB_0
   k8s:
     state: present
@@ -341,6 +344,17 @@
         selector:
           app: mariadb
 
+
+- name: Get mariadb Statefulset details
+  k8s_info:
+    kind: StatefulSet
+    name: mariadb
+    namespace: drupal
+  register: mariadb_sfs_exists
+
+- name: Print the full variable
+  debug: var=mariadb_sfs_exists
+
 - name: Drupal DB StatefulSet
   k8s:
     state: present
@@ -423,6 +437,13 @@
                 value: "yes"
               - name: MYSQL_DATABASE
                 value: drupal-db
+              - name: MYSQL_USER
+                value: "'drupal'@'%'"
+              - name: MYSQL_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: mysql-pass
+                    key: password
               #- name: MYSQL_ROOT_PASSWORD
               #  valueFrom:
               #    secretKeyRef:
@@ -474,124 +495,7 @@
             resources:
               requests:
                 storage: 2Gi
-
-
-
-            #- name: Drupal DB StatefulSet
-            #  k8s:
-            #    state: present
-            #    definition:
-            #      apiVersion: apps/v1
-            #      kind: StatefulSet
-            #      metadata:
-            #        name: mysql-innodb-cluster
-            #        namespace: drupal
-            #        labels:
-            #          app: drupal
-            #      spec:
-            #        selector:
-            #          matchLabels:
-            #            app: drupal
-            #            tier: backend
-            #        serviceName: "mysql-innodb-cluster"
-            #        replicas: 3
-            #        podManagementPolicy: Parallel
-            #        template:
-            #          metadata:
-            #            labels:
-            #              app: drupal
-            #              tier: backend
-            #          spec:
-            #            containers:
-            #            - image: "{{ mysql_image }}"
-            #              imagePullPolicy: IfNotPresent
-            #              name: mysql
-            #              env:
-            #              - name: MYSQL_DATABASE
-            #                value: drupal-db
-            #              - name: MYSQL_ROOT_PASSWORD
-            #                valueFrom:
-            #                  secretKeyRef:
-            #                    name: mysql-pass
-            #                    key: password
-            #              ports:
-            #              - containerPort: 3306
-            #                name: mysql
-            #              volumeMounts:
-            #              - name: mysql-stateful-storage
-            #                mountPath: /var/lib/mysql
-            #        volumeClaimTemplates:
-            #         - metadata:
-            #             name: mysql-stateful-storage
-            #           spec:
-            #             accessModes:
-            #               - ReadWriteOnce
-            #             storageClassName: manual
-            #             resources:
-            #               requests:
-            #                 storage: 3Gi
-
-
-                   #- name: Drupal DB Service_0
-                   #  k8s:
-                   #    state: present
-                   #    definition:
-                   #      apiVersion: v1
-                   #      kind: Service
-                   #      metadata:
-                   #        name: mysql-innodb-cluster-0
-                   #        namespace: drupal
-                   #        labels:
-                   #          app: drupal
-                   #      spec:
-                   #        ports:
-                   #        - port: 3306
-                   #        selector:
-                   #          app: drupal
-                   #          tier: backend
-                   #          statefulset.kubernetes.io/pod-name: mysql-innodb-cluster-0
-                   #        clusterIP: None
-                   #
-                   #- name: Drupal DB Service_1
-                   #  k8s:
-                   #    state: present
-                   #    definition:
-                   #      apiVersion: v1
-                   #      kind: Service
-                   #      metadata:
-                   #        name: mysql-innodb-cluster-1
-                   #        namespace: drupal
-                   #        labels:
-                   #          app: drupal
-                   #      spec:
-                   #        ports:
-                   #        - port: 3306
-                   #        selector:
-                   #          app: drupal
-                   #          tier: backend
-                   #          statefulset.kubernetes.io/pod-name: mysql-innodb-cluster-1
-                   #        clusterIP: None
-                   #
-                   #- name: Drupal DB Service_2
-                   #  k8s:
-                   #    state: present
-                   #    definition:
-                   #      apiVersion: v1
-                   #      kind: Service
-                   #      metadata:
-                   #        name: mysql-innodb-cluster-2
-                   #        namespace: drupal
-                   #        labels:
-                   #          app: drupal
-                   #      spec:
-                   #        ports:
-                   #        - port: 3306
-                   #        selector:
-                   #          app: drupal
-                   #          tier: backend
-                   #          statefulset.kubernetes.io/pod-name: mysql-innodb-cluster-2
-                   #        clusterIP: None
-
+  when: mariadb_sfs_exists.resources|length == 0
 
 
 # vim: ff=unix:ai:et:sw=2:ts=2:

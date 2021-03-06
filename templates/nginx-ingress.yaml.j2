@@ -1,6 +1,7 @@
 ---
 
 {% for app_name, app_port in apps_to_deploy.items() %}
+{% if app_name != "monitoring" %}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -20,7 +21,48 @@ spec:
           serviceName: {{ app_name }}
           servicePort: {{ app_port }}
 ---
+{% else %}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ app_name }}
+  namespace: {{ app_name }}
+spec:
+  tls:
+    - hosts:
+      - {{ app_name }}.{{ fqdn }}
+      secretName: tls-certificate
+  rules:
+  - host: {{ app_name }}.{{ fqdn }}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: prometheus-prometheus-oper-prometheus
+          servicePort: {{ app_port }}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ app_name }}.grafana
+  namespace: {{ app_name }}
+spec:
+  tls:
+    - hosts:
+      - {{ app_name }}.grafana.{{ fqdn }}
+      secretName: tls-certificate
+  rules:
+  - host: {{ app_name }}.grafana.{{ fqdn }}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: prometheus-grafana
+          servicePort: 80
+---
+{% endif %}
 {% endfor %}
+
 {% if kubernetes_enable_web_ui %}
 ---
 apiVersion: extensions/v1beta1
