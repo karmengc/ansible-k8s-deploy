@@ -18,26 +18,28 @@
 #- name: Deploy hello-k8s
 #  include_tasks: deploy_hello_k8s.yml
 
-      #- name: Deploy tomcat
-      #  include_tasks: deploy_tomcat.yml
-      #
-      #- name: Deploy MySQL
-      #  include_tasks: deploy_mysql.yml
+- name: Deploy tomcat
+  include_tasks: deploy_tomcat.yml
 
-      #- name: Deploy Mattermost
-      #  include_tasks: deploy_mattermost.yml
+- name: Deploy MySQL
+  include_tasks: deploy_mysql.yml
 
-- name: Deploy Prometheus
-  include_tasks: deploy_prometheus.yml
+- name: Deploy Mattermost
+  include_tasks: deploy_mattermost.yml
 
-    #- name: Deploy Drupal
-    #  include_tasks: deploy_drupal.yml
 - name: Deploy Drupal Statefulset and SQL cluster
   include_tasks: deploy_drupal_statefulset.yml
+
+- name: Deploy Prometheus and Grafana
+  include_tasks: deploy_prometheus.yml
 
 - name: Create secrets for apps
   include_tasks: setup_secrets_apps.yml
   when: apps_to_deploy is defined
+
+- name: Create secrets for Grafana if deployed
+  include_tasks: setup_secrets_grafana.yml
+  when: '"monitoring.grafana" in apps_to_deploy'
 
 - name: Create secrets for k8s dashboard
   include_tasks: setup_secrets_dashb.yml

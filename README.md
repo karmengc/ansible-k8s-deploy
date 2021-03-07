@@ -17,6 +17,60 @@ Role Variables
 
 A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
 
+
+
+Aplicaciones para Desplegar
+--------------------------
+# Hello-go
+
+
+
+# Mattermost
+
+
+# K8s Dashboard
+
+
+
+# Drupal + MariaDB Cluster
+
+
+- Para acceder desde cualquier miembro del cluster por ssh a las instancias de mariadb:
+
+$kubectl exec -it mariadb-0 mariadb -ndrupal -- /bin/bash
+
+
+- Para saber las métricas que se exportan desde mariadb:
+
+
+$kubectl -n mysql port-forward mariadb-0 9104:9104 &
+
+(Ponemos & al final para que quede en segundo plano el forward)
+
+$curl -s http://localhost:9104/metrics
+
+
+# Prometheus + Grafana
+
+Los servicios se encontrarán una vez desplegados en:
+
+https://monitoring.cluster.local:30443/
+
+y
+
+https://monitoring.grafana.cluster.local:30443/
+
+Para acceder a Grafana se pueden obtener las credenciales desde cualquiera de los miembros del cluster ejecutando:
+
+$kubectl get secret prometheus-grafana -nmonitoring -o yaml
+
+Y desencriptando los valores de la siguiente manera:
+
+echo "YWRtaW4=" | base64 -d
+
+
+
+
 Dependencies
 ------------
 

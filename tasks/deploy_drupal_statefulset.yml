@@ -85,6 +85,7 @@
           app: drupal
           tier: frontend
       spec:
+        replicas: 2
         selector:
           matchLabels:
             app: drupal
@@ -111,7 +112,6 @@
               name: drupal
               env:
               - name: DRUPAL_DATABASE_HOST
-                #value: drupal-mysql
                 value: mariadb
               - name: DRUPAL_DATABASE_PASSWORD
                 valueFrom:
@@ -187,9 +187,36 @@
 
 
 #########################  MYSQL --- Base de datos para Drupal    ############
-#- name: MySQL image
-#  set_fact:
-#    mysql_image: "mysql:5.6"
+- name: MariaDB image AMD64 arch
+  set_fact:
+    mariadb_image: "mariadb:10.2.36-bionic@sha256:b7be3ade3d5441c79b5c8a9cf2c2269f14bf420876a06def7d50e1763f042238"
+  when: cluster_arch == 'amd64'
+
+              #image: prom/mysqld-exporter:v0.12.1@sha256:9fe9938c4ac9216cc24005144338f14fac4f604f139b481cc541bead008db3c1
+- name: MariaDB image ARM64 arch
+  set_fact:
+    mariadb_image: "mariadb:10.2.36-bionic@sha256:c2f8c8b7ec560747b9b79121c4c2f4f2a26b86212bf96e92a5e0b3a4fe45bebc"
+  when: cluster_arch == 'arm64'
+
+- name: Pull MariaDB image
+  docker_image:
+    name: "{{ mariadb_image }}"
+    source: pull
+
+- name: Prometheus mysqld exporter image AMD64 arch
+  set_fact:
+    mysqld_exporter_image: "prom/mysqld-exporter:v0.12.1@sha256:9fe9938c4ac9216cc24005144338f14fac4f604f139b481cc541bead008db3c1"
+  when: cluster_arch == 'amd64'
+
+- name: Prometheus mysqld exporter image ARM64 arch
+  set_fact:
+    mysqld_exporter_image: "prom/mysqld-exporter-linux-arm64:v0.12.1@sha256:0c18b88b8db3c193eefeede31a80d5d0c850306076b7166910ed239685dd20b0"
+  when: cluster_arch == 'arm64'
+
+- name: Pull Prometheus mysqld exporter image
+  docker_image:
+    name: "{{ mysqld_exporter_image }}"
+    source: pull
 
 - name: Set 777 perms for Drupal PV DB Folder
   file:
@@ -352,8 +379,8 @@
     namespace: drupal
   register: mariadb_sfs_exists
 
-- name: Print the full variable
-  debug: var=mariadb_sfs_exists
+#- name: Print the full variable
+#  debug: var=mariadb_sfs_exists
 
 - name: Drupal DB StatefulSet
   k8s:
@@ -412,10 +439,12 @@
                 mountPath: /etc/mysql/conf.d
               - name: initdb
                 mountPath: /docker-entrypoint-initdb.d
-              image: mariadb:10.2.36-bionic@sha256:b7be3ade3d5441c79b5c8a9cf2c2269f14bf420876a06def7d50e1763f042238
+              #image: mariadb:10.2.36-bionic@sha256:b7be3ade3d5441c79b5c8a9cf2c2269f14bf420876a06def7d50e1763f042238
+              image: "{{ mariadb_image }}" 
             containers:
             - name: mariadb
-              image: mariadb:10.2.36-bionic@sha256:b7be3ade3d5441c79b5c8a9cf2c2269f14bf420876a06def7d50e1763f042238
+              #image: mariadb:10.2.36-bionic@sha256:b7be3ade3d5441c79b5c8a9cf2c2269f14bf420876a06def7d50e1763f042238
+              image: "{{ mariadb_image }}" 
               ports:
               - containerPort: 3306
                 name: mysql
@@ -436,9 +465,12 @@
               - name: MYSQL_INITDB_SKIP_TZINFO
                 value: "yes"
               - name: MYSQL_DATABASE
-                value: drupal-db
+                value: "drupaldb"
+              - name: MYSQL_ROOT_HOST
+                value: '%'
               - name: MYSQL_USER
-                value: "'drupal'@'%'"
+                #value: "'drupal'@'%'"
+                value: "drupal"
               - name: MYSQL_PASSWORD
                 valueFrom:
                   secretKeyRef:
@@ -472,7 +504,8 @@
               - name: initdb
                 mountPath: /docker-entrypoint-initdb.d
             - name: metrics
-              image: prom/mysqld-exporter:v0.12.1@sha256:9fe9938c4ac9216cc24005144338f14fac4f604f139b481cc541bead008db3c1
+              #image: prom/mysqld-exporter:v0.12.1@sha256:9fe9938c4ac9216cc24005144338f14fac4f604f139b481cc541bead008db3c1
+              image: "{{ mysqld_exporter_image }}"
               env:
               - name: DATA_SOURCE_NAME
                 value: root@(localhost:3306)/

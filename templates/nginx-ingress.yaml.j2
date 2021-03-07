@@ -1,7 +1,7 @@
 ---
 
 {% for app_name, app_port in apps_to_deploy.items() %}
-{% if app_name != "monitoring" %}
+{% if app_name != "monitoring" and app_name != "monitoring.grafana" %}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -22,6 +22,7 @@ spec:
           servicePort: {{ app_port }}
 ---
 {% else %}
+{% if app_name == "monitoring" %}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -38,28 +39,31 @@ spec:
       paths:
       - path: /
         backend:
-          serviceName: prometheus-prometheus-oper-prometheus
+          serviceName: prometheus-server 
           servicePort: {{ app_port }}
 ---
+{% endif %}
+{% if app_name == "monitoring.grafana" %}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: {{ app_name }}.grafana
-  namespace: {{ app_name }}
+  name: {{ app_name }}
+  namespace: monitoring
 spec:
   tls:
     - hosts:
-      - {{ app_name }}.grafana.{{ fqdn }}
+      - {{ app_name }}.{{ fqdn }}
       secretName: tls-certificate
   rules:
-  - host: {{ app_name }}.grafana.{{ fqdn }}
+  - host: {{ app_name }}.{{ fqdn }}
     http:
       paths:
       - path: /
         backend:
-          serviceName: prometheus-grafana
-          servicePort: 80
+          serviceName: grafana
+          servicePort: {{ app_port }}
 ---
+{% endif %}
 {% endif %}
 {% endfor %}
 

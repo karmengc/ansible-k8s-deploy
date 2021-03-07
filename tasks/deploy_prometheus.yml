@@ -2,66 +2,120 @@
 
 #https://betterprogramming.pub/monitor-your-kubernetes-cluster-with-prometheus-and-grafana-1f7d0195e59
 
-#- name: Add stable repo for Helm
-#  command: "helm repo add stable https://charts.helm.sh/stable"
-
-
 #https://docs.ansible.com/ansible/latest/collections/community/kubernetes/helm_module.html
-# From repository
-- name: Add stable chart repo
+
+# Es necesario crear Persistent Volumes para Prometheus:
+# https://medium.com/flant-com/install-vanilla-kubernetes-raspberry-pi-b21895a51550
+
+#Las carpetas se han de crear en worker1 y por eso pasamos esta tarea al rol de provisionamiento
+
+- name: Prometheus PV
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        annotations:
+        finalizers:
+        - kubernetes.io/pv-protection
+        name: prometheus-server
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        capacity:
+          storage: 8Gi
+        claimRef:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          name: prometheus-server
+          namespace: monitoring
+        local:
+          path: /data/localstorage/prometheus-server
+        nodeAffinity:
+          required:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - worker1
+        persistentVolumeReclaimPolicy: Retain
+        storageClassName: local-storage
+        volumeMode: Filesystem
+
+
+
+- name: Prometheus AlertManager PV
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        annotations:
+        finalizers:
+        - kubernetes.io/pv-protection
+        name: prometheus-alertmanager
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        capacity:
+          storage: 2Gi
+        claimRef:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          name: prometheus-alertmanager
+          namespace: monitoring
+        local:
+          path: /data/localstorage/prometheus-alertmanager
+        nodeAffinity:
+          required:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - worker1
+        persistentVolumeReclaimPolicy: Retain
+        storageClassName: local-storage
+        volumeMode: Filesystem
+
+
+
+# El repositorio anterior está obsoleto desde septiembre de 2020, procedemos a actualizarlo:
+#https://github.com/prometheus-community/helm-charts/tree/main/charts/prometheus
+- name: Add stable chart repo for Prometheus
   community.kubernetes.helm_repository:
-    name: stable
-    repo_url: "https://charts.helm.sh/stable"
+    name: prometheus-community
+    repo_url: "https://prometheus-community.github.io/helm-charts"
+
+      #- name: Add stable chart repo for Prometheus metrics
+      #  community.kubernetes.helm_repository:
+      #    name: kube-state-metrics
+      #    repo_url: "https://kubernetes.github.io/kube-state-metrics"
+
+- name: Add stable chart repo for Grafana
+  community.kubernetes.helm_repository:
+    name: grafana
+    repo_url: "https://grafana.github.io/helm-charts"
 
 - name: Deploy latest version of Prometheus chart inside monitoring namespace (and create it)
   community.kubernetes.helm:
     name: "prometheus"
-    chart_ref: "stable/prometheus-operator"
+    #chart_ref: "prometheus-community/prometheus"
+    chart_ref: "stable/prometheus"
     release_namespace: "monitoring"
     create_namespace: "true"
     values_files:
       - /mnt/nfs/values_prometheus_mariadb.yaml
 
-      #- name: Install Prometheus with Helm
-      #  command: "helm install prometheus stable/prometheus-operator --namespace monitoring --values /mnt/nfs/values_prometheus_mariadb.yaml"
+- name: Deploy latest version of Grafana chart inside monitoring namespace
+  community.kubernetes.helm:
+    name: "grafana"
+    chart_ref: "grafana/grafana"
+    release_namespace: "monitoring"
 
-
-- name: Expose https port with ClusterIP
-  community.kubernetes.k8s_service:
-    state: present
-    name: test-https
-    namespace: default
-    ports:
-    - port: 443
-      protocol: TCP
-    selector:
-      key: special
-
-- name: Prometheus Service
-  k8s_service:
-    state: present
-    apply: yes
-    name: prometheus-prometheus-oper-prometheus
-    namespace: monitoring
-    type: NodePort
-    ports:
-    - protocol: TCP
-      port: 9090
-      targetPort: 9090
-      nodePort: 30909
-
-- name: Grafana Service
-  k8s_service:
-    state: present
-    apply: yes
-    name: prometheus-grafana
-    namespace: monitoring
-    type: NodePort
-    ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
-      nodePort: 30910
 
 
 # vim: ff=unix:ai:et:sw=2:ts=2:
