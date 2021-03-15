@@ -1,20 +1,5 @@
 ---
 
-#- name: Tomcat image AMD64 arch
-#  set_fact:
-#    tomcat_image: "tomcat:9"
-#  when: cluster_arch == 'amd64'
-#
-#- name: Tomcat image ARM64 arch
-#  set_fact:
-#    tomcat_image: "tomcat:9@sha256:400d10be96fc90c981021031800834daefe0b41b9cc3d84bb92eb0164613dd04"
-#  when: cluster_arch == 'arm64'
-#
-#- name: Pull Tomcat image
-#  docker_image:
-#    name: "{{ tomcat_image }}"
-#    source: pull
-
 - name: Pull Tomcat image
   docker_image:
     name: "tomcat:9"
@@ -68,7 +53,7 @@
         name: myweb-tomcat
         namespace: myweb
       spec:
-        replicas: 1
+        replicas: 2
         selector:
           app: myweb
         template:

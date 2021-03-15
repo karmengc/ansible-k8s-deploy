@@ -11,27 +11,32 @@
     chain: FORWARD
     jump: ACCEPT
 
-
+# Se han mantenido los ejemplos sencillos de hello-go comentados
 #- name: Deploy hello-go
 #  include_tasks: deploy_hello_go.yml
 
 #- name: Deploy hello-k8s
 #  include_tasks: deploy_hello_k8s.yml
 
-- name: Deploy tomcat
+- name: Deploy tomcat MyWweb
   include_tasks: deploy_tomcat.yml
+  when: '"myweb" in apps_to_deploy'
 
-- name: Deploy MySQL
+- name: Deploy MySQL MyWeb
   include_tasks: deploy_mysql.yml
+  when: '"myweb" in apps_to_deploy'
 
 - name: Deploy Mattermost
   include_tasks: deploy_mattermost.yml
+  when: '"mattermost" in apps_to_deploy'
 
 - name: Deploy Drupal Statefulset and SQL cluster
   include_tasks: deploy_drupal_statefulset.yml
+  when: '"drupal" in apps_to_deploy'
 
 - name: Deploy Prometheus and Grafana
   include_tasks: deploy_prometheus.yml
+  when: '"monitoring" in apps_to_deploy'
 
 - name: Create secrets for apps
   include_tasks: setup_secrets_apps.yml

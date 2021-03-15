@@ -21,15 +21,35 @@ A description of the settable variables for this role should go here, including 
 
 Aplicaciones para Desplegar
 --------------------------
+Las aplicaciones a desplegar serán aquellas incluidas en la variable:
+
+```
+apps_to_deploy: {'myweb':'8080', 'drupal':'80', 'monitoring':'9090', 'mattermost':'8000', 'monitoring.grafana':'80'}
+```
+
+Pueden incluirse todas tal y como se ve en el ejemplo, o sólo añadir los pares nombre/puerto que se deseen. Esta variable es utilizada por el componente Ingress NGINX para habilitar puntos de entrada a las aplicaciones.
+
+Es necesario en tal caso añadir al fichero /etc/hosts del equipo desde el cual se despliegue el rol la siguiente línea para poder acceder a los servicios:
+
+Raspberry Máster:
+192.168.1.60 master myweb.cluster.local mattermost.cluster.local dashboard.k8s.ingress.cluster.local monitoring.cluster.local drupal.cluster.local monitoring.grafana.cluster.local
+
+Molecule Máster:
+192.168.130.150 master myweb.cluster.local mattermost.cluster.local dashboard.k8s.ingress.cluster.local monitoring.cluster.local drupal.cluster.local monitoring.grafana.cluster.local
+
+
+Eligiendo según sea el host destino una opción u otra.
+
+
 # Hello-go
 
 
 
 # Mattermost
-
+Despliega el contenedor de Mattermost en un pod y de PostgreSQL en otro pod asociado para almacenar toda su información. Para que ésta sea persistente, 
 
 # K8s Dashboard
-
+Este rol despliega el Dashboard de Kubernetes si además de incluirse en la variable apps\_to\_deploy, establecemos a true la variable kubernetes\_enable\_web\_ui.
 
 
 # Drupal + MariaDB Cluster
@@ -70,27 +90,12 @@ echo "YWRtaW4=" | base64 -d
 
 
 
-
-Dependencies
-------------
-
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
-
 Example Playbook
 ----------------
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+Para llamar a este rol se haría de la siguiente manera:
 
-    - hosts: servers
+    - hosts: server
       roles:
-         - { role: username.rolename, x: 42 }
+         - ansible-k8s-deploy
 
-License
--------
-
-BSD
-
-Author Information
-------------------
-
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).

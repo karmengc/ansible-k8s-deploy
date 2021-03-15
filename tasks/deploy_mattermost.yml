@@ -2,35 +2,6 @@
 
 ### Fuente: https://github.com/iguchikoma/mattermost-kubernetes
 
-# Descargo la imagen en local pero hago build con la version team y no enterprise: https://hub.docker.com/r/mattermost/mattermost-prod-app#choose-edition-to-install
-
-
-#- name: Get existing image
-#  shell: |
-#    docker image inspect master:5000/mattermost-prod-app:5.30.2
-#  register: image_exists
-#  ignore_errors: yes
-#  changed_when: false
-#
-#
-#- name: build mattermost container image
-#  docker_image:
-#    name: "mattermost-prod-app"
-#    tag: "5.30.2"
-#    build:
-#      path: "/mnt/nfs/mattermost-docker/app"
-#      pull: false
-#    source: build
-#  when: image_exists.rc == 1
-#
-#- name: Tag and push to local registry
-#  docker_image:
-#    name: "mattermost-prod-app"
-#    tag: "5.30.2"
-#    repository: "master:5000/mattermost-prod-app:5.30.2"
-#    push: true
-#    source: local
-#  when: image_exists.rc == 1
 
 # Este repositorio permite instalar Mattermost 6 (solo disponible para amd64)
 - name: Mattermost image AMD64 version
@@ -49,11 +20,11 @@
   file:
     path: "/export/nfs/mattermost-postgres-pv"
     state: directory
-    mode: "0777"
+    mode: '0777'
     recurse: yes
 
 - name: Create mattermost namespace
-  k8s:
+  community.kubernetes.k8s:
     name: mattermost
     api_version: v1
     kind: Namespace
@@ -87,7 +58,6 @@
           spec:
             containers:
             - name: mattermost-app
-              #image: "master:5000/mattermost-prod-app:5.30.2"
               image: "{{ mm_image }}"
               env:
               - name: DB_HOST

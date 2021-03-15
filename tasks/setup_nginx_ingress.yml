@@ -1,5 +1,8 @@
 ---
-# Fixme check for condition
+
+# Las siguientes tareas se han extraído de una parte del siguiente proyecto:
+# https://github.com/gbava/kubernetes-vagrant-ansible
+
 - name: Wait until cluster is built
   wait_for: timeout=100
   delegate_to: localhost
@@ -62,3 +65,5 @@
 
 - name: Apply nginx-ingress.yaml file
   shell: kubectl apply -f {{ deployment_dir }}/yaml/nginx-ingress.yaml
+
+# vim: ff=unix:ai:et:sw=2:ts=2:
