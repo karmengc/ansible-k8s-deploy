@@ -51,19 +51,12 @@
     namespace: default
   register: svc
 
-- name: Print the full svc variable
-  debug: var=svc
+#- name: Print the full svc variable
+#  debug: var=svc
 
 - name: Set the service NodePort as a variable
   set_fact:
-    port: "{{ svc['resources'][0]['spec']['ports'][0]['nodePort'] }}"
+    hello_k8s_port: "{{ svc['resources'][0]['spec']['ports'][0]['nodePort'] }}"
 
 
-- name: Test a request to the service
-  uri:
-    url: http://{{ master_ip }}:{{ port }}/
-
-- name: Print the URL for hello-k8s
-  debug:
-    msg: http://{{ master_ip }}:{{ port }}/
-
+# vim: ff=unix:ai:et:sw=2:ts=2:

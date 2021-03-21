@@ -36,3 +36,4 @@
 - name: For Dashboard login use this token
   debug: var=admin_token.stdout_lines
 
+# vim: ff=unix:ai:et:sw=2:ts=2:

@@ -12,8 +12,8 @@
     jump: ACCEPT
 
 # Se han mantenido los ejemplos sencillos de hello-go comentados
-#- name: Deploy hello-go
-#  include_tasks: deploy_hello_go.yml
+- name: Deploy hello-go
+  include_tasks: deploy_hello_go.yml
 
 #- name: Deploy hello-k8s
 #  include_tasks: deploy_hello_k8s.yml
@@ -56,6 +56,36 @@
 
 - name: Setup nginx ingress
   include_tasks: setup_nginx_ingress.yml
+
+
+################### DEBUG - INFO Tasks #####################
+
+- name: Imprimir URL para hello-go
+  debug:
+    msg: http://{{ node_ip }}:{{ hello_go_port }}/
+  when: hello_go_port is defined
+
+- name: Imprimir URL para hello-k8s
+  debug:
+    msg: http://{{ node_ip }}:{{ hello_k8s_port }}/
+  when: hello_k8s_port is defined
+
+- name: Servicios desplegados y accesos
+  debug:
+    msg: "https://{{ item.key }}.cluster.local:30443"
+  with_dict: "{{ apps_to_deploy }}"
+
+- name: Obtener grafana password
+  shell: "kubectl -n monitoring get secret grafana -o yaml | grep -i '^  admin-password' | awk '{print $2}' | base64 -d"
+  register: grafana_passwd
+  when: '"monitoring.grafana" in apps_to_deploy'
+
+- name: Para loguearse en Grafana utilice usuario admin y la siguiente password
+  debug: var=grafana_passwd.stdout_lines
+
+- name: Para validarse en Dashboard utilizar este token
+  debug: var=admin_token.stdout_lines
+  when: kubernetes_enable_web_ui
 
 
 # vim: ff=unix:ai:et:sw=2:ts=2:

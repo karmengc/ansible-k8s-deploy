@@ -79,13 +79,14 @@
           app: mysql
 
 
-- name: Get mysql service details
-  k8s_info:
-    kind: Service
-    name: mysql
-    namespace: myweb
-  register: svc
+#- name: Get mysql service details
+#  k8s_info:
+#    kind: Service
+#    name: mysql
+#    namespace: myweb
+#  register: svc
+#
+#- name: Print the full svc variable
+#  debug: var=svc
 
-- name: Print the full svc variable
-  debug: var=svc
-
+# vim: ff=unix:ai:et:sw=2:ts=2:

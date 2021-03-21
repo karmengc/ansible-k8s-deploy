@@ -30,6 +30,80 @@
     kind: Namespace
     state: present
 
+- name: Mattermost and Postgres PV
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: mattermost-postgres-pv
+          #        annotations:
+          #          volume.beta.kubernetes.io/storage-class: "slow"
+        labels:
+          name: mattermost-postgres-pv
+      spec:
+        #https://www.jorgedelacruz.es/2017/12/26/kubernetes-volumenes-nfs/
+        #storageClassName: storage-nfs
+        volumeMode: Filesystem
+        capacity:
+          storage: 5Gi
+        accessModes:
+          - ReadWriteMany
+        persistentVolumeReclaimPolicy: Retain
+        nfs:
+          server: "{{ node_ip }}"
+          path: /export/nfs/mattermost-postgres-pv
+
+- name: Mattermost and Postgres PVC
+  k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: mattermost-postgres-pvc
+        namespace: mattermost
+        labels:
+          app: postgres
+        #annotations:
+        #  "volume.beta.kubernetes.io/storage-class": "slow"
+      spec:
+        accessModes:
+          - ReadWriteMany
+        resources:
+          requests:
+            storage: 5Gi
+        volumeMode: Filesystem
+        volumeName: mattermost-postgres-pv
+        selector:
+          matchLabels:
+            name: mattermost-postgres-pv
+
+- name: Mattermost secret
+  k8s:
+    state: present
+    definition:
+      kind: Secret
+      apiVersion: v1
+      metadata:
+        name: mattermost-env
+        namespace: mattermost
+      type: Opaque
+      data:
+        # see http://kubernetes.io/docs/user-guide/secrets/#creating-a-secret-using-kubectl-create-secret
+        # for creating secrets manually
+          # db
+        db-host: ZGI=
+          # 5432
+        db-port: NTQzMg==
+          # mmuser
+        mm-username: bW11c2Vy
+          # mmuser_password
+        mm-password: bW11c2VyX3Bhc3N3b3Jk
+          # mattermost
+        mm-dbname: bWF0dGVybW9zdA==
+
 - name: Mattermost Deployment
   k8s:
     state: present
@@ -99,30 +173,6 @@
               hostPath:
                 path: /etc/localtime
 
-
-- name: Mattermost secret
-  k8s:
-    state: present
-    definition:
-      kind: Secret
-      apiVersion: v1
-      metadata:
-        name: mattermost-env
-        namespace: mattermost
-      type: Opaque
-      data:
-        # see http://kubernetes.io/docs/user-guide/secrets/#creating-a-secret-using-kubectl-create-secret
-        # for creating secrets manually
-          # db
-        db-host: ZGI=
-          # 5432
-        db-port: NTQzMg==
-          # mmuser
-        mm-username: bW11c2Vy
-          # mmuser_password
-        mm-password: bW11c2VyX3Bhc3N3b3Jk
-          # mattermost
-        mm-dbname: bWF0dGVybW9zdA==
 
 - name: Mattermost Service
   k8s:
@@ -215,56 +265,6 @@
             - name: mattermost-postgres-pv
               persistentVolumeClaim:
                 claimName: mattermost-postgres-pvc
-
-- name: Postgres PV
-  k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: PersistentVolume
-      metadata:
-        name: mattermost-postgres-pv
-          #        annotations:
-          #          volume.beta.kubernetes.io/storage-class: "slow"
-        labels:
-          name: mattermost-postgres-pv
-      spec:
-        #https://www.jorgedelacruz.es/2017/12/26/kubernetes-volumenes-nfs/
-        #storageClassName: storage-nfs
-        volumeMode: Filesystem
-        capacity:
-          storage: 5Gi
-        accessModes:
-          - ReadWriteMany
-        persistentVolumeReclaimPolicy: Retain
-        nfs:
-          server: "{{ node_ip }}"
-          path: /export/nfs/mattermost-postgres-pv
-
-- name: Postgres PVC
-  k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: PersistentVolumeClaim
-      metadata:
-        name: mattermost-postgres-pvc
-        namespace: mattermost
-        labels:
-          app: postgres
-        #annotations:
-        #  "volume.beta.kubernetes.io/storage-class": "slow"
-      spec:
-        accessModes:
-          - ReadWriteMany
-        resources:
-          requests:
-            storage: 5Gi
-        volumeMode: Filesystem
-        volumeName: mattermost-postgres-pv
-        selector:
-          matchLabels:
-            name: mattermost-postgres-pv
 
 
 - name: Postgres Service
