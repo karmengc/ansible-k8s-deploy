@@ -1,91 +1,91 @@
 ---
 
-- name: Docker configuration
-  include_tasks: docker_conf.yml
+- name            : Docker configuration
+  include_tasks   : docker_conf.yml
 
 
 #https://github.com/kubernetes/kubernetes/issues/71305
 #https://docs.oracle.com/en/operating-systems/oracle-linux/kubernetes/kube_admin_config.html#kube_admin_config_iptables
-- name: Aceptar Forwarding
-  iptables:
-    chain: FORWARD
-    jump: ACCEPT
+- name            : Aceptar Forwarding
+  iptables        :
+    chain         : FORWARD
+    jump          : ACCEPT
 
 # Se han mantenido los ejemplos sencillos de hello-go comentados
-#- name: Deploy hello-go
-#  include_tasks: deploy_hello_go.yml
+#- name           : Deploy hello-go
+#  include_tasks  : deploy_hello_go.yml
 
-#- name: Deploy hello-k8s
-#  include_tasks: deploy_hello_k8s.yml
+#- name           : Deploy hello-k8s
+#  include_tasks  : deploy_hello_k8s.yml
 
-- name: Deploy tomcat MyWweb
-  include_tasks: deploy_tomcat.yml
-  when: '"myweb" in apps_to_deploy'
+- name            : Deploy tomcat MyWweb
+  include_tasks   : deploy_tomcat.yml
+  when            : '"myweb" in apps_to_deploy'
 
-- name: Deploy MySQL MyWeb
-  include_tasks: deploy_mysql.yml
-  when: '"myweb" in apps_to_deploy'
+- name            : Deploy MySQL MyWeb
+  include_tasks   : deploy_mysql.yml
+  when            : '"myweb" in apps_to_deploy'
 
-- name: Deploy Mattermost
-  include_tasks: deploy_mattermost.yml
-  when: '"mattermost" in apps_to_deploy'
+- name            : Deploy Mattermost
+  include_tasks   : deploy_mattermost.yml
+  when            : '"mattermost" in apps_to_deploy'
 
-- name: Deploy Drupal Statefulset and SQL cluster
-  include_tasks: deploy_drupal_statefulset.yml
-  when: '"drupal" in apps_to_deploy'
+- name            : Deploy Drupal Statefulset and SQL cluster
+  include_tasks   : deploy_drupal_statefulset.yml
+  when            : '"drupal" in apps_to_deploy'
 
-- name: Deploy Prometheus and Grafana
-  include_tasks: deploy_prometheus.yml
-  when: '"monitoring" in apps_to_deploy'
+- name            : Deploy Prometheus and Grafana
+  include_tasks   : deploy_prometheus.yml
+  when            : '"monitoring" in apps_to_deploy'
 
-- name: Create secrets for apps
-  include_tasks: setup_secrets_apps.yml
-  when: apps_to_deploy is defined
+- name            : Create secrets for apps
+  include_tasks   : setup_secrets_apps.yml
+  when            : apps_to_deploy is defined
 
-- name: Create secrets for Grafana if deployed
-  include_tasks: setup_secrets_grafana.yml
-  when: '"monitoring.grafana" in apps_to_deploy'
+- name            : Create secrets for Grafana if deployed
+  include_tasks   : setup_secrets_grafana.yml
+  when            : '"monitoring.grafana" in apps_to_deploy'
 
-- name: Create secrets for k8s dashboard
-  include_tasks: setup_secrets_dashb.yml
-  when: kubernetes_enable_web_ui
+- name            : Create secrets for k8s dashboard
+  include_tasks   : setup_secrets_dashb.yml
+  when            : kubernetes_enable_web_ui
 
-- name: Create admin user for dashboard
-  include_tasks: set_admin_dashb.yml
-  when: kubernetes_enable_web_ui and kubernetes_create_admin_dashb_user
+- name            : Create admin user for dashboard
+  include_tasks   : set_admin_dashb.yml
+  when            : kubernetes_enable_web_ui and kubernetes_create_admin_dashb_user
 
-- name: Setup nginx ingress
-  include_tasks: setup_nginx_ingress.yml
+- name            : Setup nginx ingress
+  include_tasks   : setup_nginx_ingress.yml
 
 
 ################### DEBUG - INFO Tasks #####################
 
-- name: Imprimir URL para hello-go
-  debug:
-    msg: http://{{ node_ip }}:{{ hello_go_port }}/
-  when: hello_go_port is defined
+- name            : Imprimir URL para hello-go
+  debug           :
+    msg           : http://{{ node_ip }}:{{ hello_go_port }}/
+  when            : hello_go_port is defined
 
-- name: Imprimir URL para hello-k8s
-  debug:
-    msg: http://{{ node_ip }}:{{ hello_k8s_port }}/
-  when: hello_k8s_port is defined
+- name            : Imprimir URL para hello-k8s
+  debug           :
+    msg           : http://{{ node_ip }}:{{ hello_k8s_port }}/
+  when            : hello_k8s_port is defined
 
-- name: Servicios desplegados y accesos
-  debug:
-    msg: "https://{{ item.key }}.cluster.local:30443"
-  with_dict: "{{ apps_to_deploy }}"
+- name            : Servicios desplegados y accesos
+  debug           :
+    msg           : "https://{{ item.key }}.cluster.local:30443"
+  with_dict       : "{{ apps_to_deploy }}"
 
-- name: Obtener grafana password
-  shell: "kubectl -n monitoring get secret grafana -o yaml | grep -i '^  admin-password' | awk '{print $2}' | base64 -d"
-  register: grafana_passwd
-  when: '"monitoring.grafana" in apps_to_deploy'
+- name            : Obtener grafana password
+  shell           : "kubectl -n monitoring get secret grafana -o yaml | grep -i '^  admin-password' | awk '{print $2}' | base64 -d"
+  register        : grafana_passwd
+  when            : '"monitoring.grafana" in apps_to_deploy'
 
-- name: Para loguearse en Grafana utilice usuario admin y la siguiente password
-  debug: var=grafana_passwd.stdout_lines
+- name            : Para loguearse en Grafana utilice usuario admin y la siguiente password
+  debug           : var=grafana_passwd.stdout_lines
 
-- name: Para validarse en Dashboard utilizar este token
-  debug: var=admin_token.stdout_lines
-  when: kubernetes_enable_web_ui
+- name            : Para validarse en Dashboard utilizar este token
+  debug           : var=admin_token.stdout_lines
+  when            : kubernetes_enable_web_ui
 
 
 # vim: ff=unix:ai:et:sw=2:ts=2:

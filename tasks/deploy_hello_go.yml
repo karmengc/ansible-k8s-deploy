@@ -1,32 +1,32 @@
 ---
 
-- name: Get existing image
-  shell: |
+- name                  : Get existing image
+  shell                 : |
     docker image inspect master:5000/hello-go
-  register: image_exists
-  ignore_errors: yes
-  changed_when: false
+  register              : image_exists
+  ignore_errors         : yes
+  changed_when          : false
 
-- name: build hellogo container image
-  docker_image:
-    name: "hello-go"
-    tag: "latest"
-    build:
-      path: "/mnt/nfs/hello-go"
-      pull: false
-    source: build
-  when: image_exists.rc == 1
+- name                  : build hellogo container image
+  docker_image          :
+    name                : "hello-go"
+    tag                 : "latest"
+    build               :
+      path              : "/mnt/nfs/hello-go"
+      pull              : false
+    source              : build
+  when                  : image_exists.rc == 1
 
-- name: push hellogo container image to local registry
-  docker_image:
-    name: "hello-go"
-    tag: "latest"
-    repository: "master:5000/hello-go:latest"
-    push: true
-    source: local
-  when: image_exists.rc == 1
+- name                  : push hellogo container image to local registry
+  docker_image          :
+    name                : "hello-go"
+    tag                 : "latest"
+    repository          : "master:5000/hello-go:latest"
+    push                : true
+    source              : local
+  when                  : image_exists.rc == 1
 
-- name: Create hellogo deployment from an inline definition
+- name                  : Create hellogo deployment from an inline definition
   k8s:
     state: present
     definition:
@@ -52,7 +52,7 @@
                 ports:
                 - containerPort: 8180
 
-- name: Create a Service object from an inline definition
+- name                  : Create a Service object from an inline definition
   k8s:
     state: present
     definition:
@@ -70,19 +70,19 @@
           app: hello-go
 
 
-- name: Get hello-go service details
-  k8s_info:
-    kind: Service
-    name: hello-go
-    namespace: default
-  register: svc
+- name                  : Get hello-go service details
+  k8s_info              :
+    kind                : Service
+    name                : hello-go
+    namespace           : default
+  register              : svc
 
-- name: Print the full svc variable
-  debug: var=svc
+- name                  : Print the full svc variable
+  debug                 : var=svc
 
-- name: Set the service NodePort as a variable
-  set_fact:
-    hello_go_port: "{{ svc['resources'][0]['spec']['ports'][0]['nodePort'] }}"
+- name                  : Set the service NodePort as a variable
+  set_fact              :
+    hello_go_port       : "{{ svc['resources'][0]['spec']['ports'][0]['nodePort'] }}"
 
 
 # vim: ff=unix:ai:et:sw=2:ts=2:

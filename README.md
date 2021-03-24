@@ -1,7 +1,7 @@
-Role Name
+Ansible-k8s-deploy
 =========
+Este rol despliega los objetos de Kubernetes necesarios para levantar varias aplicaciones que prueban varias de las funcionalidades de la herramienta.
 
-A brief description of the role goes here.
 
 Requirements
 ------------
@@ -12,11 +12,18 @@ ansible-galaxy collection install community.general
 
 (pendiente comprobar si es realmente necesario)
 
+
+Es necesario haber desplegado previamente ansible-k8s-install para que Kubernetes esté instalado y configurado en las máquinas destino.
+
+
 Role Variables
 --------------
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+apps\_to\_deploy
 
+kubernetes\_create\_admin\_dashb\_user
+
+kubernetes\_enable\_web\_ui   (Establecida también para ansible-k8s-install)
 
 
 Aplicaciones para Desplegar
@@ -58,11 +65,11 @@ para solucionarlo provisionalmente se establecen permisos 777 recursivos en la c
 Para evitar esto una posible mejora sería establecer permisos en el arranque del contenedor de Mattermost para que se puedan leer las imágenes.
 
 # K8s Dashboard
-Este rol despliega el Dashboard de Kubernetes si además de incluirse en la variable apps\_to\_deploy, establecemos a true la variable kubernetes\_enable\_web\_ui.
+Este rol despliega el Dashboard de Kubernetes si establecemos a true la variable kubernetes\_enable\_web\_ui.
 
 Para acceder a la URL:
 
-https://dashboard.cluster.local:30443
+https://dashboard.k8s.ingress.cluster.local:30443/
 
 Es necesario un token que facilitará este mismo despliegue por pantalla, o bien consultando dentro del cluster:
 
@@ -142,4 +149,19 @@ Para llamar a este rol se haría de la siguiente manera:
     - hosts: server
       roles:
          - ansible-k8s-deploy
+
+# Posible timeout
+Es posible que al desplegar en el entorno de test la primera vez aparezca un error al reiniciar Kubelet como el siguiente:
+```
+{"msg": "Timeout (12s) waiting for privilege escalation prompt: "}
+```
+
+En tal caso los servicios arrancarán con normalidad al cabo de unos minutos pero no se mostrarán las líneas finales de debug para conocer los
+endpoints a los que podemos conectarnos para comprobar el estado de los servicios. En tal caso desplegar de nuevo y aparecerán al final de
+manera correcta.
+
+https://github.com/ansible/ansible/issues/14426
+
+
+
 
