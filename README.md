@@ -8,7 +8,7 @@ Requirements
 
 Se ha instalado en el host desde el cual se despliega ansible:
 
-ansible-galaxy collection uninstall community.general
+ansible-galaxy collection install community.general
 
 (pendiente comprobar si es realmente necesario)
 
@@ -42,15 +42,37 @@ Eligiendo según sea el host destino una opción u otra.
 
 
 # Hello-go
+Su finalidad es que a partir de un código en go, se compile, se cree el contenedor en el registro local y se levante un pod con el mismo.
+Hay que tener en cuenta que el código de esta aplicación debe de estar en /mnt/nfs/hello-go que es un directorio montado y procedente del host 
+desde el cual se despliega, exportado por NFS.
 
+Este despliegue mostrará la URL en la cual se publicará el servicio.
 
 
 # Mattermost
-Despliega el contenedor de Mattermost en un pod y de PostgreSQL en otro pod asociado para almacenar toda su información. Para que ésta sea persistente, 
+Despliega el contenedor de Mattermost en un pod y de PostgreSQL en otro pod asociado para almacenar toda su información. Para que ésta sea persistente, se crea
+un Persistent Volume que consiste en una unidad NFS que se exporta desde el nodo máster.
+
+Mejora pendiente: En ocasiones no se cargan las imágenes de usuario correctamente en la interfaz web, principalmente cuando el pod se arranca por primera vez,
+para solucionarlo provisionalmente se establecen permisos 777 recursivos en la carpeta del Persistent Volume. 
+Para evitar esto una posible mejora sería establecer permisos en el arranque del contenedor de Mattermost para que se puedan leer las imágenes.
 
 # K8s Dashboard
 Este rol despliega el Dashboard de Kubernetes si además de incluirse en la variable apps\_to\_deploy, establecemos a true la variable kubernetes\_enable\_web\_ui.
 
+Para acceder a la URL:
+
+https://dashboard.cluster.local:30443
+
+Es necesario un token que facilitará este mismo despliegue por pantalla, o bien consultando dentro del cluster:
+
+$ kubectl get secrets -nkubernetes-dashboard
+
+Averiguamos el identificador del secret que guarda el token de admin y hacemos:
+
+$ kubectl get secret admin-user-token-94wvb -nkubernetes-dashboard -o yaml | grep token
+
+Desencriptar ese token con ''base64 -d''
 
 # Drupal + MariaDB Cluster
 
@@ -69,6 +91,28 @@ $kubectl -n mysql port-forward mariadb-0 9104:9104 &
 
 $curl -s http://localhost:9104/metrics
 
+
+Para configurar drupal por primera vez acceder por el NodePort del servicio:
+
+http://drupal.cluster.local:30010/
+
+* Indicar usuario y contraseña:
+drupal / Pass1
+
+* base de datos:
+drupaldb
+
+* servidor de base de datos:
+mariadb 
+
+(servicio headless del clúster de mariadb)
+
+
+Una vez instalado es posible acceder a:
+
+https://drupal.cluster.local:30443
+
+Para visitar el sitio web.
 
 # Prometheus + Grafana
 

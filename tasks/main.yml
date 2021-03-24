@@ -12,8 +12,8 @@
     jump: ACCEPT
 
 # Se han mantenido los ejemplos sencillos de hello-go comentados
-- name: Deploy hello-go
-  include_tasks: deploy_hello_go.yml
+#- name: Deploy hello-go
+#  include_tasks: deploy_hello_go.yml
 
 #- name: Deploy hello-k8s
 #  include_tasks: deploy_hello_k8s.yml
