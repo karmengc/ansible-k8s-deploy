@@ -89,12 +89,7 @@
   community.kubernetes.helm_repository:
     name: prometheus-community
     repo_url: "https://prometheus-community.github.io/helm-charts"
-    #repo_url: "https://github.com/prometheus-community/helm-charts"
-
-      #- name: Add stable chart repo for Prometheus metrics
-      #  community.kubernetes.helm_repository:
-      #    name: kube-state-metrics
-      #    repo_url: "https://kubernetes.github.io/kube-state-metrics"
+  tags          : provision_install_tasks
 
 - name: Deploy latest version of Prometheus chart inside monitoring namespace (and create it)
   community.kubernetes.helm:
@@ -106,11 +101,13 @@
     update_repo_cache: yes
     values_files:
       - /mnt/nfs/values_prometheus_mariadb.yaml
+  tags          : provision_install_tasks
 
 - name: Add stable chart repo for Grafana
   community.kubernetes.helm_repository:
     name: grafana
     repo_url: "https://grafana.github.io/helm-charts"
+  tags          : provision_install_tasks
 
 
 - name: Deploy latest version of Grafana chart inside monitoring namespace
@@ -119,6 +116,7 @@
     chart_ref: "grafana/grafana"
     release_namespace: "monitoring"
     update_repo_cache: yes
+  tags          : provision_install_tasks
 
 
 
