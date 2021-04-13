@@ -134,6 +134,7 @@
             containers:
             - name: mattermost-app
               image: "{{ mm_image }}"
+              imagePullPolicy: IfNotPresent
               env:
               - name: DB_HOST
                 valueFrom:
