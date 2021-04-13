@@ -11,7 +11,7 @@ spec:
   tls:
     - hosts:
       - {{ app_name }}.{{ fqdn }}
-      secretName: tls-certificate
+      secretName: tls-{{ app_name }}-certificate
   rules:
   - host: {{ app_name }}.{{ fqdn }}
     http:
@@ -32,7 +32,7 @@ spec:
   tls:
     - hosts:
       - {{ app_name }}.{{ fqdn }}
-      secretName: tls-certificate
+      secretName: tls-{{ app_name }}-certificate
   rules:
   - host: {{ app_name }}.{{ fqdn }}
     http:
@@ -53,7 +53,7 @@ spec:
   tls:
     - hosts:
       - {{ app_name }}.{{ fqdn }}
-      secretName: tls-certificate
+      secretName: tls-grafana-certificate
   rules:
   - host: {{ app_name }}.{{ fqdn }}
     http:

@@ -139,6 +139,8 @@ Y desencriptando los valores de la siguiente manera:
 
 echo "YWRtaW4=" | base64 -d
 
+Se añadido el tag provision\_install\_tags a las tareas de instalación con HELM puesto que actualizaba directamente de versión (haciendo rollin update),
+con el fin de controlar actualizaciones no deseadas. 
 
 
 Example Playbook
